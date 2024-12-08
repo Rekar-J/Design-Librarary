@@ -21,7 +21,7 @@ else:
 
 # Sidebar Navigation
 st.sidebar.title("Navigation")
-menu = st.sidebar.radio("Go to", ["Dashboard", "Upload Files", "View Designs", "Settings", "About"])
+menu = st.sidebar.radio("Go to", ["Dashboard", "Upload Files", "View Designs", "Manage Files", "Settings", "About"])
 
 # Create necessary directories
 UPLOAD_FOLDER = "uploaded_files"
@@ -32,28 +32,6 @@ os.makedirs(COMMENTS_FOLDER, exist_ok=True)
 CATEGORIES = ["2D Plans", "3D Plans", "Other"]
 
 # Helper Functions
-def save_comment(file_name, comment_data):
-    """Save comments to a JSON file."""
-    comments_file = os.path.join(COMMENTS_FOLDER, f"{file_name}.json")
-    if os.path.exists(comments_file):
-        with open(comments_file, "r") as f:
-            existing_comments = json.load(f)
-    else:
-        existing_comments = []
-
-    existing_comments.append(comment_data)
-
-    with open(comments_file, "w") as f:
-        json.dump(existing_comments, f, indent=4)
-
-def load_comments(file_name):
-    """Load comments from a JSON file."""
-    comments_file = os.path.join(COMMENTS_FOLDER, f"{file_name}.json")
-    if os.path.exists(comments_file):
-        with open(comments_file, "r") as f:
-            return json.load(f)
-    return []
-
 def get_file_stats():
     """Return total files and breakdown by category."""
     files = os.listdir(UPLOAD_FOLDER)
@@ -63,6 +41,22 @@ def get_file_stats():
         if category in stats["categories"]:
             stats["categories"][category] += 1
     return stats
+
+def rename_file_category(file_name, new_category):
+    """Rename a file to change its category."""
+    old_path = os.path.join(UPLOAD_FOLDER, file_name)
+    new_name = f"{new_category}_{file_name.split('_', 1)[1]}"
+    new_path = os.path.join(UPLOAD_FOLDER, new_name)
+    os.rename(old_path, new_path)
+
+def delete_file(file_name):
+    """Delete a file."""
+    file_path = os.path.join(UPLOAD_FOLDER, file_name)
+    os.remove(file_path)
+    # Remove associated comments
+    comments_file = os.path.join(COMMENTS_FOLDER, f"{file_name}.json")
+    if os.path.exists(comments_file):
+        os.remove(comments_file)
 
 # Dashboard
 if menu == "Dashboard":
@@ -131,18 +125,37 @@ elif menu == "View Designs":
                 elif file_ext in ["jpg", "png"]:
                     st.image(file_path, caption=selected_file)
 
-            st.subheader("Comments")
-            comments = load_comments(selected_file)
-            for comment in comments:
-                st.markdown(f"**{comment['user']}:** {comment['text']}")
-                for reply in comment.get("replies", []):
-                    st.markdown(f"&emsp;↳ **{reply['user']}:** {reply['text']}")
+# Manage Files
+elif menu == "Manage Files":
+    st.header("🔧 Manage Uploaded Files")
+    files = os.listdir(UPLOAD_FOLDER)
 
-            st.text_input("Add Comment", key="comment_input")
-            if st.button("Post Comment"):
-                new_comment = {"user": "Viewer", "text": st.session_state.comment_input, "replies": []}
-                save_comment(selected_file, new_comment)
-                st.success("Comment posted!")
+    if files:
+        selected_file = st.selectbox("Select a file to manage", files)
+
+        if selected_file:
+            st.write(f"Managing: {selected_file}")
+            # Change Category
+            new_category = st.selectbox("Change Category", CATEGORIES, index=CATEGORIES.index(selected_file.split("_")[0]))
+            if st.button("Change Category"):
+                rename_file_category(selected_file, new_category)
+                st.success(f"File category changed to {new_category}!")
+                st.experimental_rerun()
+
+            # Delete File
+            if st.button("Delete File"):
+                delete_file(selected_file)
+                st.success("File deleted successfully!")
+                st.experimental_rerun()
+
+            # Replace File
+            st.subheader("Replace File")
+            replacement_file = st.file_uploader("Upload a replacement file")
+            if replacement_file:
+                file_path = os.path.join(UPLOAD_FOLDER, selected_file)
+                with open(file_path, "wb") as f:
+                    f.write(replacement_file.getbuffer())
+                st.success("File replaced successfully!")
 
 # Settings
 elif menu == "Settings":
@@ -164,11 +177,9 @@ elif menu == "About":
     st.write("""
         **Structural Design Library** is a web app for civil engineers and architects to:
         - Upload and manage design files.
-        - View files (e.g., PDFs, text files, images).
         - Categorize files for better organization.
-        - Add comments and replies for each file.
-        - Search and filter uploaded files.
-        - View a dashboard of file stats and recent uploads.
+        - Delete or replace existing files.
+        - Change file categories dynamically.
     """)
 
 # Footer
