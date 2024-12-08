@@ -37,7 +37,7 @@ def get_file_stats():
     files = os.listdir(UPLOAD_FOLDER)
     stats = {"total": len(files), "categories": {cat: 0 for cat in CATEGORIES}}
     for file in files:
-        category = file.split("_")[0]
+        category = file.split("_")[0] if "_" in file else "Other"
         if category in stats["categories"]:
             stats["categories"][category] += 1
     return stats
@@ -45,7 +45,10 @@ def get_file_stats():
 def rename_file_category(file_name, new_category):
     """Rename a file to change its category."""
     old_path = os.path.join(UPLOAD_FOLDER, file_name)
-    new_name = f"{new_category}_{file_name.split('_', 1)[1]}"
+    if "_" in file_name:
+        new_name = f"{new_category}_{file_name.split('_', 1)[1]}"
+    else:
+        new_name = f"{new_category}_{file_name}"
     new_path = os.path.join(UPLOAD_FOLDER, new_name)
     os.rename(old_path, new_path)
 
@@ -78,7 +81,7 @@ if menu == "Dashboard":
         file_path = os.path.join(UPLOAD_FOLDER, file)
         recent_data.append({
             "File Name": file,
-            "Category": file.split("_")[0],
+            "Category": file.split("_")[0] if "_" in file else "Other",
             "Uploaded On": datetime.datetime.fromtimestamp(os.path.getctime(file_path)).strftime('%Y-%m-%d %H:%M:%S')
         })
     df = pd.DataFrame(recent_data)
@@ -135,8 +138,11 @@ elif menu == "Manage Files":
 
         if selected_file:
             st.write(f"Managing: {selected_file}")
+            # Extract category from file name and validate
+            current_category = selected_file.split("_")[0] if "_" in selected_file else "Other"
+
             # Change Category
-            new_category = st.selectbox("Change Category", CATEGORIES, index=CATEGORIES.index(selected_file.split("_")[0]))
+            new_category = st.selectbox("Change Category", CATEGORIES, index=CATEGORIES.index(current_category) if current_category in CATEGORIES else CATEGORIES.index("Other"))
             if st.button("Change Category"):
                 rename_file_category(selected_file, new_category)
                 st.success(f"File category changed to {new_category}!")
@@ -156,6 +162,8 @@ elif menu == "Manage Files":
                 with open(file_path, "wb") as f:
                     f.write(replacement_file.getbuffer())
                 st.success("File replaced successfully!")
+    else:
+        st.info("No files available to manage.")
 
 # Settings
 elif menu == "Settings":
