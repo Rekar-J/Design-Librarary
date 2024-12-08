@@ -46,19 +46,26 @@ def parse_category_from_file(file_name):
     """Extract the category from the file name."""
     return file_name.split("_")[0] if "_" in file_name else "Other"
 
-def format_recent_uploads():
-    """Format recent uploads into a DataFrame."""
-    recent_files = sorted(os.listdir(UPLOAD_FOLDER), key=lambda x: os.path.getctime(os.path.join(UPLOAD_FOLDER, x)), reverse=True)
-    recent_data = []
-    for i, file in enumerate(recent_files, start=1):
+def delete_all_files():
+    """Delete all files and associated comments."""
+    for file in os.listdir(UPLOAD_FOLDER):
         file_path = os.path.join(UPLOAD_FOLDER, file)
-        recent_data.append({
-            "No.": i,
-            "File Name": file,
-            "Category": parse_category_from_file(file),
-            "Uploaded On": datetime.datetime.fromtimestamp(os.path.getctime(file_path)).strftime('%Y-%m-%d %H:%M:%S')
-        })
-    return pd.DataFrame(recent_data)
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+        # Remove associated comments
+        comments_file = os.path.join(COMMENTS_FOLDER, f"{file}.json")
+        if os.path.exists(comments_file):
+            os.remove(comments_file)
+
+def delete_single_file(file_name):
+    """Delete a single file and its associated comments."""
+    file_path = os.path.join(UPLOAD_FOLDER, file_name)
+    if os.path.isfile(file_path):
+        os.remove(file_path)
+    # Remove associated comments
+    comments_file = os.path.join(COMMENTS_FOLDER, f"{file_name}.json")
+    if os.path.exists(comments_file):
+        os.remove(comments_file)
 
 # Dashboard
 if menu == "Dashboard":
@@ -76,8 +83,17 @@ if menu == "Dashboard":
         st.metric("Other", stats["categories"]["Other"])
 
     st.subheader("Recent Uploads")
-    df = format_recent_uploads()
-    st.table(df)
+    recent_files = sorted(os.listdir(UPLOAD_FOLDER), key=lambda x: os.path.getctime(os.path.join(UPLOAD_FOLDER, x)), reverse=True)
+    recent_data = []
+    for i, file in enumerate(recent_files, start=1):
+        file_path = os.path.join(UPLOAD_FOLDER, file)
+        recent_data.append({
+            "No.": i,
+            "File Name": file,
+            "Category": parse_category_from_file(file),
+            "Uploaded On": datetime.datetime.fromtimestamp(os.path.getctime(file_path)).strftime('%Y-%m-%d %H:%M:%S')
+        })
+    st.table(pd.DataFrame(recent_data))
 
 # File Upload Module
 elif menu == "Upload Files":
@@ -119,24 +135,12 @@ elif menu == "Manage Files":
 
     if files:
         selected_file = st.selectbox("Select a file to manage", files)
-
+        
         if selected_file:
             st.write(f"Managing: {selected_file}")
-            # Extract category from file name and validate
-            current_category = parse_category_from_file(selected_file)
-
-            # Change Category
-            new_category = st.selectbox("Change Category", CATEGORIES[1:], index=CATEGORIES[1:].index(current_category))
-            if st.button("Change Category"):
-                old_path = os.path.join(UPLOAD_FOLDER, selected_file)
-                new_name = f"{new_category}_{selected_file.split('_', 1)[1]}"
-                new_path = os.path.join(UPLOAD_FOLDER, new_name)
-                os.rename(old_path, new_path)
-                st.success(f"File category changed to {new_category}!")
-
-            # Delete File
+            # Delete Single File
             if st.button("Delete File"):
-                os.remove(os.path.join(UPLOAD_FOLDER, selected_file))
+                delete_single_file(selected_file)
                 st.success("File deleted successfully!")
 
             # Replace File
@@ -146,8 +150,14 @@ elif menu == "Manage Files":
                 with open(file_path, "wb") as f:
                     f.write(replacement_file.getbuffer())
                 st.success("File replaced successfully!")
+
     else:
         st.info("No files available to manage.")
+
+    # Delete All Files
+    if st.button("Delete All Files"):
+        delete_all_files()
+        st.success("All files have been deleted!")
 
 # Settings
 elif menu == "Settings":
@@ -172,6 +182,7 @@ elif menu == "About":
         - Categorize files for better organization.
         - View files by category or see all files at once.
         - Manage files (delete, replace, or change categories).
+        - Delete all files at once if needed.
         - Dashboard with detailed stats and recent uploads.
     """)
 
