@@ -61,6 +61,12 @@ def delete_file(file_name):
     if os.path.exists(comments_file):
         os.remove(comments_file)
 
+def replace_file(file_name, new_file):
+    """Replace an existing file with a new one."""
+    file_path = os.path.join(UPLOAD_FOLDER, file_name)
+    with open(file_path, "wb") as f:
+        f.write(new_file.getbuffer())
+
 # Dashboard
 if menu == "Dashboard":
     st.header("📊 Dashboard")
@@ -158,10 +164,9 @@ elif menu == "Manage Files":
             st.subheader("Replace File")
             replacement_file = st.file_uploader("Upload a replacement file")
             if replacement_file:
-                file_path = os.path.join(UPLOAD_FOLDER, selected_file)
-                with open(file_path, "wb") as f:
-                    f.write(replacement_file.getbuffer())
+                replace_file(selected_file, replacement_file)
                 st.success("File replaced successfully!")
+                st.experimental_rerun()
     else:
         st.info("No files available to manage.")
 
