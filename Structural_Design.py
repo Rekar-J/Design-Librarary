@@ -4,17 +4,27 @@ from PIL import Image
 import base64
 import datetime
 
+# Configurable Settings
+APP_NAME = "🏗️ Structural Design Library"
+MAIN_IMAGE = "main_image.jpg"  # Path to your main image (place it in the app folder)
+
 # App Configuration
-st.set_page_config(page_title="Structural Design Library", layout="wide")
-st.title("🏗️ Structural Design Library")
+st.set_page_config(page_title=APP_NAME, layout="wide")
+st.title(APP_NAME)
+
+# Display Main Image
+if os.path.exists(MAIN_IMAGE):
+    st.image(MAIN_IMAGE, use_column_width=True, caption="Welcome to the Structural Design Library!")
+else:
+    st.warning("Main image not found. Please upload a valid image named 'main_image.jpg' to the app folder.")
+
+# Sidebar Navigation
 st.sidebar.title("Navigation")
+menu = st.sidebar.radio("Go to", ["Dashboard", "Upload Files", "View Designs", "Settings", "About"])
 
 # Create necessary directories
 UPLOAD_FOLDER = "uploaded_files"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-# Sidebar Navigation
-menu = st.sidebar.radio("Go to", ["Dashboard", "Upload Files", "View Designs", "About"])
 
 # Helper Functions
 def get_file_stats():
@@ -101,6 +111,20 @@ elif menu == "View Designs":
                 st.download_button(label="Download File", data=open(file_path, "rb"), file_name=selected_file)
     else:
         st.info("No files available to view.")
+
+# Settings
+elif menu == "Settings":
+    st.header("⚙️ Settings")
+    new_app_name = st.text_input("Change App Name", value=APP_NAME)
+    uploaded_main_image = st.file_uploader("Upload New Main Image", type=["jpg", "png"])
+    if st.button("Save Changes"):
+        if uploaded_main_image:
+            with open(MAIN_IMAGE, "wb") as f:
+                f.write(uploaded_main_image.getbuffer())
+            st.success("Main image updated!")
+        if new_app_name:
+            st.experimental_set_query_params(app_name=new_app_name)
+            st.success("App name updated! Refresh the page to see changes.")
 
 # About Section
 elif menu == "About":
