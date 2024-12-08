@@ -31,31 +31,14 @@ os.makedirs(COMMENTS_FOLDER, exist_ok=True)
 
 CATEGORIES = ["All", "2D Plans", "3D Plans", "Other"]
 
+# Initialize session state for file management
+if "file_list" not in st.session_state:
+    st.session_state.file_list = os.listdir(UPLOAD_FOLDER)
+
 # Helper Functions
-def get_file_stats():
-    """Return total files and breakdown by category."""
-    files = os.listdir(UPLOAD_FOLDER)
-    stats = {"total": len(files), "categories": {cat: 0 for cat in CATEGORIES if cat != "All"}}
-    for file in files:
-        category = file.split("_")[0] if "_" in file else "Other"
-        if category in stats["categories"]:
-            stats["categories"][category] += 1
-    return stats
-
-def parse_category_from_file(file_name):
-    """Extract the category from the file name."""
-    return file_name.split("_")[0] if "_" in file_name else "Other"
-
-def delete_all_files():
-    """Delete all files and associated comments."""
-    for file in os.listdir(UPLOAD_FOLDER):
-        file_path = os.path.join(UPLOAD_FOLDER, file)
-        if os.path.isfile(file_path):
-            os.remove(file_path)
-        # Remove associated comments
-        comments_file = os.path.join(COMMENTS_FOLDER, f"{file}.json")
-        if os.path.exists(comments_file):
-            os.remove(comments_file)
+def refresh_file_list():
+    """Refresh the file list in session state."""
+    st.session_state.file_list = os.listdir(UPLOAD_FOLDER)
 
 def delete_single_file(file_name):
     """Delete a single file and its associated comments."""
@@ -66,11 +49,27 @@ def delete_single_file(file_name):
     comments_file = os.path.join(COMMENTS_FOLDER, f"{file_name}.json")
     if os.path.exists(comments_file):
         os.remove(comments_file)
+    refresh_file_list()
+
+def delete_all_files():
+    """Delete all files and associated comments."""
+    for file in os.listdir(UPLOAD_FOLDER):
+        delete_single_file(file)
+    refresh_file_list()
+
+def parse_category_from_file(file_name):
+    """Extract the category from the file name."""
+    return file_name.split("_")[0] if "_" in file_name else "Other"
 
 # Dashboard
 if menu == "Dashboard":
     st.header("📊 Dashboard")
-    stats = get_file_stats()
+    files = st.session_state.file_list
+    stats = {"total": len(files), "categories": {cat: 0 for cat in CATEGORIES if cat != "All"}}
+    for file in files:
+        category = parse_category_from_file(file)
+        if category in stats["categories"]:
+            stats["categories"][category] += 1
 
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -83,7 +82,7 @@ if menu == "Dashboard":
         st.metric("Other", stats["categories"]["Other"])
 
     st.subheader("Recent Uploads")
-    recent_files = sorted(os.listdir(UPLOAD_FOLDER), key=lambda x: os.path.getctime(os.path.join(UPLOAD_FOLDER, x)), reverse=True)
+    recent_files = sorted(files, key=lambda x: os.path.getctime(os.path.join(UPLOAD_FOLDER, x)), reverse=True)
     recent_data = []
     for i, file in enumerate(recent_files, start=1):
         file_path = os.path.join(UPLOAD_FOLDER, file)
@@ -109,6 +108,7 @@ elif menu == "Upload Files":
             file_path = os.path.join(UPLOAD_FOLDER, f"{category}_{uploaded_file.name}")
             with open(file_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
+        refresh_file_list()
         st.success("Files uploaded successfully!")
 
 # File Viewing Module
@@ -117,9 +117,9 @@ elif menu == "View Designs":
     selected_category = st.selectbox("Choose Category", CATEGORIES)
 
     if selected_category == "All":
-        files = os.listdir(UPLOAD_FOLDER)
+        files = st.session_state.file_list
     else:
-        files = [file for file in os.listdir(UPLOAD_FOLDER) if parse_category_from_file(file) == selected_category]
+        files = [file for file in st.session_state.file_list if parse_category_from_file(file) == selected_category]
 
     if files:
         st.write(f"Files in {selected_category}:")
@@ -131,11 +131,11 @@ elif menu == "View Designs":
 # Manage Files
 elif menu == "Manage Files":
     st.header("🔧 Manage Uploaded Files")
-    files = os.listdir(UPLOAD_FOLDER)
+    files = st.session_state.file_list
 
     if files:
         selected_file = st.selectbox("Select a file to manage", files)
-        
+
         if selected_file:
             st.write(f"Managing: {selected_file}")
             # Delete Single File
@@ -150,6 +150,7 @@ elif menu == "Manage Files":
                 with open(file_path, "wb") as f:
                     f.write(replacement_file.getbuffer())
                 st.success("File replaced successfully!")
+                refresh_file_list()
 
     else:
         st.info("No files available to manage.")
