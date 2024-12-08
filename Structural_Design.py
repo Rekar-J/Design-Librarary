@@ -1,8 +1,9 @@
 import os
 import streamlit as st
 from PIL import Image
-import base64
+import json
 import datetime
+import pandas as pd
 
 # Configurable Settings
 APP_NAME = "🏗️ Structural Design Library"
@@ -24,48 +25,70 @@ menu = st.sidebar.radio("Go to", ["Dashboard", "Upload Files", "View Designs", "
 
 # Create necessary directories
 UPLOAD_FOLDER = "uploaded_files"
+COMMENTS_FOLDER = "comments"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(COMMENTS_FOLDER, exist_ok=True)
+
+CATEGORIES = ["2D Plans", "3D Plans", "Other"]
 
 # Helper Functions
+def save_comment(file_name, comment_data):
+    """Save comments to a JSON file."""
+    comments_file = os.path.join(COMMENTS_FOLDER, f"{file_name}.json")
+    if os.path.exists(comments_file):
+        with open(comments_file, "r") as f:
+            existing_comments = json.load(f)
+    else:
+        existing_comments = []
+
+    existing_comments.append(comment_data)
+
+    with open(comments_file, "w") as f:
+        json.dump(existing_comments, f, indent=4)
+
+def load_comments(file_name):
+    """Load comments from a JSON file."""
+    comments_file = os.path.join(COMMENTS_FOLDER, f"{file_name}.json")
+    if os.path.exists(comments_file):
+        with open(comments_file, "r") as f:
+            return json.load(f)
+    return []
+
 def get_file_stats():
     """Return total files and breakdown by category."""
     files = os.listdir(UPLOAD_FOLDER)
-    stats = {"total": len(files), "categories": {}}
+    stats = {"total": len(files), "categories": {cat: 0 for cat in CATEGORIES}}
     for file in files:
-        ext = file.split(".")[-1].lower()
-        stats["categories"][ext] = stats["categories"].get(ext, 0) + 1
+        category = file.split("_")[0]
+        if category in stats["categories"]:
+            stats["categories"][category] += 1
     return stats
-
-def display_file_preview(file_path, file_type):
-    """Render preview for supported file types."""
-    if file_type == "pdf":
-        with open(file_path, "rb") as f:
-            base64_pdf = base64.b64encode(f.read()).decode("utf-8")
-        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="700" height="500" type="application/pdf"></iframe>'
-        st.markdown(pdf_display, unsafe_allow_html=True)
-        st.info("If the PDF does not load, use the download button below.")
-    elif file_type == "txt":
-        with open(file_path, "r") as f:
-            content = f.read()
-        st.text_area("Text File Content", content, height=300)
-    elif file_type in ["jpg", "png"]:
-        image = Image.open(file_path)
-        st.image(image, caption=os.path.basename(file_path))
-    else:
-        st.info("File preview not supported. You can download the file below.")
 
 # Dashboard
 if menu == "Dashboard":
     st.header("📊 Dashboard")
     stats = get_file_stats()
-    st.subheader(f"Total Files: {stats['total']}")
-    st.write("File Breakdown by Category:")
-    for category, count in stats["categories"].items():
-        st.write(f"- **{category.upper()}**: {count}")
-    st.write("Recent Uploads:")
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total Files", stats["total"])
+    with col2:
+        st.metric("2D Plans", stats["categories"]["2D Plans"])
+    with col3:
+        st.metric("3D Plans", stats["categories"]["3D Plans"])
+
+    st.subheader("Recent Uploads")
     recent_files = sorted(os.listdir(UPLOAD_FOLDER), key=lambda x: os.path.getctime(os.path.join(UPLOAD_FOLDER, x)), reverse=True)
+    recent_data = []
     for file in recent_files[:5]:
-        st.write(f"- {file} (Uploaded on {datetime.datetime.fromtimestamp(os.path.getctime(os.path.join(UPLOAD_FOLDER, file))).strftime('%Y-%m-%d %H:%M:%S')})")
+        file_path = os.path.join(UPLOAD_FOLDER, file)
+        recent_data.append({
+            "File Name": file,
+            "Category": file.split("_")[0],
+            "Uploaded On": datetime.datetime.fromtimestamp(os.path.getctime(file_path)).strftime('%Y-%m-%d %H:%M:%S')
+        })
+    df = pd.DataFrame(recent_data)
+    st.table(df)
 
 # File Upload Module
 elif menu == "Upload Files":
@@ -74,7 +97,7 @@ elif menu == "Upload Files":
         "Upload your design files (.pdf, .txt, .jpg, .png, .dwg, .skp)", 
         accept_multiple_files=True
     )
-    category = st.selectbox("Select File Category", ["PDF", "Image", "Drawing", "Other"])
+    category = st.selectbox("Select File Category", CATEGORIES)
 
     if uploaded_files:
         for uploaded_file in uploaded_files:
@@ -86,31 +109,40 @@ elif menu == "Upload Files":
 # File Viewing Module
 elif menu == "View Designs":
     st.header("👁️ View Uploaded Files")
+    selected_category = st.selectbox("Choose Category", ["All"] + CATEGORIES)
+
     files = os.listdir(UPLOAD_FOLDER)
+    if selected_category != "All":
+        files = [file for file in files if file.startswith(selected_category)]
 
     if files:
-        search_query = st.text_input("Search Files")
-        filtered_files = [file for file in files if search_query.lower() in file.lower()]
-
-        file_category = st.selectbox("Filter by Category", ["All", "PDF", "Image", "Drawing", "Other"])
-        if file_category != "All":
-            filtered_files = [file for file in filtered_files if file.startswith(file_category)]
-
-        selected_file = st.selectbox("Select a file to view", filtered_files)
+        selected_file = st.selectbox("Select a file to view", files)
 
         if selected_file:
             file_path = os.path.join(UPLOAD_FOLDER, selected_file)
             file_ext = selected_file.split(".")[-1].lower()
-            if file_ext == "pdf":
-                display_file_preview(file_path, "pdf")
-            elif file_ext == "txt":
-                display_file_preview(file_path, "txt")
-            elif file_ext in ["jpg", "png"]:
-                display_file_preview(file_path, file_ext)
-            else:
-                st.download_button(label="Download File", data=open(file_path, "rb"), file_name=selected_file)
-    else:
-        st.info("No files available to view.")
+
+            if file_ext in ["pdf", "txt", "jpg", "png"]:
+                st.write(f"Viewing: {selected_file}")
+                if file_ext == "pdf":
+                    st.download_button(label="Download PDF", data=open(file_path, "rb"), file_name=selected_file)
+                elif file_ext == "txt":
+                    st.text_area("Text File Content", open(file_path, "r").read())
+                elif file_ext in ["jpg", "png"]:
+                    st.image(file_path, caption=selected_file)
+
+            st.subheader("Comments")
+            comments = load_comments(selected_file)
+            for comment in comments:
+                st.markdown(f"**{comment['user']}:** {comment['text']}")
+                for reply in comment.get("replies", []):
+                    st.markdown(f"&emsp;↳ **{reply['user']}:** {reply['text']}")
+
+            st.text_input("Add Comment", key="comment_input")
+            if st.button("Post Comment"):
+                new_comment = {"user": "Viewer", "text": st.session_state.comment_input, "replies": []}
+                save_comment(selected_file, new_comment)
+                st.success("Comment posted!")
 
 # Settings
 elif menu == "Settings":
@@ -134,6 +166,7 @@ elif menu == "About":
         - Upload and manage design files.
         - View files (e.g., PDFs, text files, images).
         - Categorize files for better organization.
+        - Add comments and replies for each file.
         - Search and filter uploaded files.
         - View a dashboard of file stats and recent uploads.
     """)
