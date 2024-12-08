@@ -152,21 +152,17 @@ elif menu == "Manage Files":
             if st.button("Change Category"):
                 rename_file_category(selected_file, new_category)
                 st.success(f"File category changed to {new_category}!")
-                st.experimental_rerun()
 
             # Delete File
             if st.button("Delete File"):
                 delete_file(selected_file)
                 st.success("File deleted successfully!")
-                st.experimental_rerun()
 
             # Replace File
-            st.subheader("Replace File")
             replacement_file = st.file_uploader("Upload a replacement file")
             if replacement_file:
                 replace_file(selected_file, replacement_file)
                 st.success("File replaced successfully!")
-                st.experimental_rerun()
     else:
         st.info("No files available to manage.")
 
