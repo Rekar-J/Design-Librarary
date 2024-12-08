@@ -1,6 +1,5 @@
 import os
 import streamlit as st
-import shutil
 from PIL import Image
 import base64
 
@@ -20,7 +19,8 @@ menu = st.sidebar.radio("Go to", ["Upload Files", "View Designs", "About"])
 if menu == "Upload Files":
     st.header("📂 Upload and Manage Files")
     uploaded_files = st.file_uploader(
-        "Upload your design files (.pdf, .txt, .dwg, .skp)", accept_multiple_files=True
+        "Upload your design files (.pdf, .txt, .jpg, .png, .dwg, .skp)", 
+        accept_multiple_files=True
     )
 
     if uploaded_files:
@@ -51,8 +51,15 @@ elif menu == "View Designs":
         if selected_file.endswith(".pdf"):
             with open(file_path, "rb") as f:
                 base64_pdf = base64.b64encode(f.read()).decode("utf-8")
-            pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="700" height="500" type="application/pdf"></iframe>'
-            st.markdown(pdf_display, unsafe_allow_html=True)
+            try:
+                pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="700" height="500" type="application/pdf"></iframe>'
+                st.markdown(pdf_display, unsafe_allow_html=True)
+                st.info("If the PDF does not load, use the download button below.")
+            except Exception:
+                st.error("Unable to display the PDF in your browser.")
+            # Provide a download button as a fallback
+            with open(file_path, "rb") as f:
+                st.download_button(label="Download PDF", data=f, file_name=selected_file, mime="application/pdf")
 
         elif selected_file.endswith(".txt"):
             with open(file_path, "r") as f:
