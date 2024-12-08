@@ -4,6 +4,7 @@ from PIL import Image
 import json
 import datetime
 import pandas as pd
+import base64
 
 # Configurable Settings
 APP_NAME = "🏗️ Structural Design Library"
@@ -40,26 +41,25 @@ def refresh_file_list():
     """Refresh the file list in session state."""
     st.session_state.file_list = os.listdir(UPLOAD_FOLDER)
 
-def delete_single_file(file_name):
-    """Delete a single file and its associated comments."""
-    file_path = os.path.join(UPLOAD_FOLDER, file_name)
-    if os.path.isfile(file_path):
-        os.remove(file_path)
-    # Remove associated comments
-    comments_file = os.path.join(COMMENTS_FOLDER, f"{file_name}.json")
-    if os.path.exists(comments_file):
-        os.remove(comments_file)
-    refresh_file_list()
-
-def delete_all_files():
-    """Delete all files and associated comments."""
-    for file in os.listdir(UPLOAD_FOLDER):
-        delete_single_file(file)
-    refresh_file_list()
-
 def parse_category_from_file(file_name):
     """Extract the category from the file name."""
     return file_name.split("_")[0] if "_" in file_name else "Other"
+
+def display_file_preview(file_path, file_type):
+    """Render file preview for supported file types."""
+    if file_type in ["jpg", "png", "jpeg"]:
+        st.image(file_path, caption=os.path.basename(file_path), use_column_width=True)
+    elif file_type == "pdf":
+        with open(file_path, "rb") as f:
+            base64_pdf = base64.b64encode(f.read()).decode("utf-8")
+        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="700" height="500" type="application/pdf"></iframe>'
+        st.markdown(pdf_display, unsafe_allow_html=True)
+    elif file_type == "txt":
+        with open(file_path, "r") as f:
+            content = f.read()
+        st.text_area("Text File Content", content, height=300)
+    else:
+        st.info("Preview not supported for this file type.")
 
 # Dashboard
 if menu == "Dashboard":
@@ -122,9 +122,19 @@ elif menu == "View Designs":
         files = [file for file in st.session_state.file_list if parse_category_from_file(file) == selected_category]
 
     if files:
-        st.write(f"Files in {selected_category}:")
         for file in files:
-            st.markdown(f"- {file}")
+            st.subheader(file)
+            file_path = os.path.join(UPLOAD_FOLDER, file)
+            file_ext = file.split(".")[-1].lower()
+            display_file_preview(file_path, file_ext)
+            with open(file_path, "rb") as f:
+                st.download_button(
+                    label="Download File",
+                    data=f,
+                    file_name=file,
+                    mime="application/octet-stream"
+                )
+            st.markdown("---")
     else:
         st.info(f"No files found in {selected_category} category.")
 
@@ -181,7 +191,7 @@ elif menu == "About":
         **Structural Design Library** is a web app for civil engineers and architects to:
         - Upload and manage design files.
         - Categorize files for better organization.
-        - View files by category or see all files at once.
+        - View files by category or see all files at once with previews and download options.
         - Manage files (delete, replace, or change categories).
         - Delete all files at once if needed.
         - Dashboard with detailed stats and recent uploads.
