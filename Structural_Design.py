@@ -29,13 +29,13 @@ COMMENTS_FOLDER = "comments"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(COMMENTS_FOLDER, exist_ok=True)
 
-CATEGORIES = ["2D Plans", "3D Plans", "Other"]
+CATEGORIES = ["All", "2D Plans", "3D Plans", "Other"]
 
 # Helper Functions
 def get_file_stats():
     """Return total files and breakdown by category."""
     files = os.listdir(UPLOAD_FOLDER)
-    stats = {"total": len(files), "categories": {cat: 0 for cat in CATEGORIES}}
+    stats = {"total": len(files), "categories": {cat: 0 for cat in CATEGORIES if cat != "All"}}
     for file in files:
         category = file.split("_")[0] if "_" in file else "Other"
         if category in stats["categories"]:
@@ -86,7 +86,7 @@ elif menu == "Upload Files":
         "Upload your design files (.pdf, .txt, .jpg, .png, .dwg, .skp)", 
         accept_multiple_files=True
     )
-    category = st.selectbox("Select File Category", CATEGORIES)
+    category = st.selectbox("Select File Category", CATEGORIES[1:])  # Exclude "All" for uploads
 
     if uploaded_files:
         for uploaded_file in uploaded_files:
@@ -100,7 +100,10 @@ elif menu == "View Designs":
     st.header("👁️ View Uploaded Files")
     selected_category = st.selectbox("Choose Category", CATEGORIES)
 
-    files = [file for file in os.listdir(UPLOAD_FOLDER) if parse_category_from_file(file) == selected_category]
+    if selected_category == "All":
+        files = os.listdir(UPLOAD_FOLDER)
+    else:
+        files = [file for file in os.listdir(UPLOAD_FOLDER) if parse_category_from_file(file) == selected_category]
 
     if files:
         st.write(f"Files in {selected_category}:")
@@ -123,7 +126,7 @@ elif menu == "Manage Files":
             current_category = parse_category_from_file(selected_file)
 
             # Change Category
-            new_category = st.selectbox("Change Category", CATEGORIES, index=CATEGORIES.index(current_category))
+            new_category = st.selectbox("Change Category", CATEGORIES[1:], index=CATEGORIES[1:].index(current_category))
             if st.button("Change Category"):
                 old_path = os.path.join(UPLOAD_FOLDER, selected_file)
                 new_name = f"{new_category}_{selected_file.split('_', 1)[1]}"
@@ -167,7 +170,7 @@ elif menu == "About":
         **Structural Design Library** is a web app for civil engineers and architects to:
         - Upload and manage design files.
         - Categorize files for better organization.
-        - View files by category.
+        - View files by category or see all files at once.
         - Manage files (delete, replace, or change categories).
         - Dashboard with detailed stats and recent uploads.
     """)
