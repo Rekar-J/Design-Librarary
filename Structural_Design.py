@@ -42,55 +42,41 @@ def get_file_stats():
             stats["categories"][category] += 1
     return stats
 
-def rename_file_category(file_name, new_category):
-    """Rename a file to change its category."""
-    old_path = os.path.join(UPLOAD_FOLDER, file_name)
-    if "_" in file_name:
-        new_name = f"{new_category}_{file_name.split('_', 1)[1]}"
-    else:
-        new_name = f"{new_category}_{file_name}"
-    new_path = os.path.join(UPLOAD_FOLDER, new_name)
-    os.rename(old_path, new_path)
+def parse_category_from_file(file_name):
+    """Extract the category from the file name."""
+    return file_name.split("_")[0] if "_" in file_name else "Other"
 
-def delete_file(file_name):
-    """Delete a file."""
-    file_path = os.path.join(UPLOAD_FOLDER, file_name)
-    os.remove(file_path)
-    # Remove associated comments
-    comments_file = os.path.join(COMMENTS_FOLDER, f"{file_name}.json")
-    if os.path.exists(comments_file):
-        os.remove(comments_file)
-
-def replace_file(file_name, new_file):
-    """Replace an existing file with a new one."""
-    file_path = os.path.join(UPLOAD_FOLDER, file_name)
-    with open(file_path, "wb") as f:
-        f.write(new_file.getbuffer())
+def format_recent_uploads():
+    """Format recent uploads into a DataFrame."""
+    recent_files = sorted(os.listdir(UPLOAD_FOLDER), key=lambda x: os.path.getctime(os.path.join(UPLOAD_FOLDER, x)), reverse=True)
+    recent_data = []
+    for i, file in enumerate(recent_files, start=1):
+        file_path = os.path.join(UPLOAD_FOLDER, file)
+        recent_data.append({
+            "No.": i,
+            "File Name": file,
+            "Category": parse_category_from_file(file),
+            "Uploaded On": datetime.datetime.fromtimestamp(os.path.getctime(file_path)).strftime('%Y-%m-%d %H:%M:%S')
+        })
+    return pd.DataFrame(recent_data)
 
 # Dashboard
 if menu == "Dashboard":
     st.header("📊 Dashboard")
     stats = get_file_stats()
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("Total Files", stats["total"])
     with col2:
         st.metric("2D Plans", stats["categories"]["2D Plans"])
     with col3:
         st.metric("3D Plans", stats["categories"]["3D Plans"])
+    with col4:
+        st.metric("Other", stats["categories"]["Other"])
 
     st.subheader("Recent Uploads")
-    recent_files = sorted(os.listdir(UPLOAD_FOLDER), key=lambda x: os.path.getctime(os.path.join(UPLOAD_FOLDER, x)), reverse=True)
-    recent_data = []
-    for file in recent_files[:5]:
-        file_path = os.path.join(UPLOAD_FOLDER, file)
-        recent_data.append({
-            "File Name": file,
-            "Category": file.split("_")[0] if "_" in file else "Other",
-            "Uploaded On": datetime.datetime.fromtimestamp(os.path.getctime(file_path)).strftime('%Y-%m-%d %H:%M:%S')
-        })
-    df = pd.DataFrame(recent_data)
+    df = format_recent_uploads()
     st.table(df)
 
 # File Upload Module
@@ -112,27 +98,16 @@ elif menu == "Upload Files":
 # File Viewing Module
 elif menu == "View Designs":
     st.header("👁️ View Uploaded Files")
-    selected_category = st.selectbox("Choose Category", ["All"] + CATEGORIES)
+    selected_category = st.selectbox("Choose Category", CATEGORIES)
 
-    files = os.listdir(UPLOAD_FOLDER)
-    if selected_category != "All":
-        files = [file for file in files if file.startswith(selected_category)]
+    files = [file for file in os.listdir(UPLOAD_FOLDER) if parse_category_from_file(file) == selected_category]
 
     if files:
-        selected_file = st.selectbox("Select a file to view", files)
-
-        if selected_file:
-            file_path = os.path.join(UPLOAD_FOLDER, selected_file)
-            file_ext = selected_file.split(".")[-1].lower()
-
-            if file_ext in ["pdf", "txt", "jpg", "png"]:
-                st.write(f"Viewing: {selected_file}")
-                if file_ext == "pdf":
-                    st.download_button(label="Download PDF", data=open(file_path, "rb"), file_name=selected_file)
-                elif file_ext == "txt":
-                    st.text_area("Text File Content", open(file_path, "r").read())
-                elif file_ext in ["jpg", "png"]:
-                    st.image(file_path, caption=selected_file)
+        st.write(f"Files in {selected_category}:")
+        for file in files:
+            st.markdown(f"- {file}")
+    else:
+        st.info(f"No files found in {selected_category} category.")
 
 # Manage Files
 elif menu == "Manage Files":
@@ -145,23 +120,28 @@ elif menu == "Manage Files":
         if selected_file:
             st.write(f"Managing: {selected_file}")
             # Extract category from file name and validate
-            current_category = selected_file.split("_")[0] if "_" in selected_file else "Other"
+            current_category = parse_category_from_file(selected_file)
 
             # Change Category
-            new_category = st.selectbox("Change Category", CATEGORIES, index=CATEGORIES.index(current_category) if current_category in CATEGORIES else CATEGORIES.index("Other"))
+            new_category = st.selectbox("Change Category", CATEGORIES, index=CATEGORIES.index(current_category))
             if st.button("Change Category"):
-                rename_file_category(selected_file, new_category)
+                old_path = os.path.join(UPLOAD_FOLDER, selected_file)
+                new_name = f"{new_category}_{selected_file.split('_', 1)[1]}"
+                new_path = os.path.join(UPLOAD_FOLDER, new_name)
+                os.rename(old_path, new_path)
                 st.success(f"File category changed to {new_category}!")
 
             # Delete File
             if st.button("Delete File"):
-                delete_file(selected_file)
+                os.remove(os.path.join(UPLOAD_FOLDER, selected_file))
                 st.success("File deleted successfully!")
 
             # Replace File
             replacement_file = st.file_uploader("Upload a replacement file")
             if replacement_file:
-                replace_file(selected_file, replacement_file)
+                file_path = os.path.join(UPLOAD_FOLDER, selected_file)
+                with open(file_path, "wb") as f:
+                    f.write(replacement_file.getbuffer())
                 st.success("File replaced successfully!")
     else:
         st.info("No files available to manage.")
@@ -187,9 +167,10 @@ elif menu == "About":
         **Structural Design Library** is a web app for civil engineers and architects to:
         - Upload and manage design files.
         - Categorize files for better organization.
-        - Delete or replace existing files.
-        - Change file categories dynamically.
+        - View files by category.
+        - Manage files (delete, replace, or change categories).
+        - Dashboard with detailed stats and recent uploads.
     """)
 
 # Footer
-st.sidebar.info("Developed by a Civil Engineer.")
+st.sidebar.info("The app created by Eng. Rekar J.")
