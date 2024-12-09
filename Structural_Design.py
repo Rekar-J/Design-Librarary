@@ -18,7 +18,7 @@ st.title(APP_NAME)
 if os.path.exists(MAIN_IMAGE):
     st.image(MAIN_IMAGE, use_column_width=True, caption="Welcome to the Structural Design Library!")
 else:
-    st.warning("Main image not found. Please upload a valid image named 'main_image.jpg' to the app folder.")
+    st.warning("Main image not found. Please upload a valid image in the Settings section.")
 
 # Sidebar Navigation
 st.sidebar.title("Navigation")
@@ -154,6 +154,16 @@ elif menu == "Manage Files 🔧":
                 st.success("File deleted successfully!")
     else:
         st.info(f"No files available to manage in {selected_category} category.")
+
+# Settings
+elif menu == "Settings ⚙️":
+    st.header("⚙️ Settings")
+    uploaded_main_image = st.file_uploader("Upload a new main image (jpg/png):", type=["jpg", "png"])
+    if st.button("Update Main Image"):
+        if uploaded_main_image:
+            with open(MAIN_IMAGE, "wb") as f:
+                f.write(uploaded_main_image.getbuffer())
+            st.success("Main image updated! Please refresh the page to see the changes.")
 
 # Help / FAQ
 elif menu == "Help / FAQ ❓":
