@@ -61,25 +61,6 @@ def parse_category_from_file(file_name):
     """Extract the category from the file name."""
     return file_name.split("_")[0] if "_" in file_name else "Other"
 
-def filter_files_by_category(category):
-    """Filter files by category."""
-    if category == "All":
-        return st.session_state.file_list
-    return [file for file in st.session_state.file_list if parse_category_from_file(file) == category]
-
-def delete_single_file(file_name):
-    """Delete a single file and its associated comments."""
-    file_path = os.path.join(UPLOAD_FOLDER, file_name)
-    if os.path.isfile(file_path):
-        os.remove(file_path)
-    refresh_file_list()
-
-def delete_all_files():
-    """Delete all files and associated comments."""
-    for file in os.listdir(UPLOAD_FOLDER):
-        delete_single_file(file)
-    refresh_file_list()
-
 def load_feedback():
     """Load feedback from the JSON file."""
     if os.path.exists(FEEDBACK_FILE):
@@ -165,25 +146,6 @@ elif menu == "User Feedback 💬":
             st.markdown("---")
     else:
         st.info("No feedback received yet.")
-
-# Export Data
-elif menu == "Export Data 📤":
-    st.header("📤 Export Data")
-    selected_category = st.selectbox("Filter files by category for export", CATEGORIES)
-
-    files_to_export = filter_files_by_category(selected_category)
-    if files_to_export:
-        df = pd.DataFrame([
-            {"File Name": file, "Category": parse_category_from_file(file)}
-            for file in files_to_export
-        ])
-        st.write("Preview of data to be exported:")
-        st.table(df)
-
-        csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button(label="Download CSV", data=csv, file_name="file_list.csv", mime="text/csv")
-    else:
-        st.info(f"No files available in the selected category ({selected_category}).")
 
 # Footer
 st.sidebar.info("The app created by Eng. Rekar J.")
