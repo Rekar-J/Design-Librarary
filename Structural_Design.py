@@ -61,6 +61,29 @@ def display_file_preview(file_path, file_type):
     else:
         st.info("Preview not supported for this file type.")
 
+def filter_files_by_category(category):
+    """Filter files by category."""
+    if category == "All":
+        return st.session_state.file_list
+    return [file for file in st.session_state.file_list if parse_category_from_file(file) == category]
+
+def delete_single_file(file_name):
+    """Delete a single file and its associated comments."""
+    file_path = os.path.join(UPLOAD_FOLDER, file_name)
+    if os.path.isfile(file_path):
+        os.remove(file_path)
+    # Remove associated comments
+    comments_file = os.path.join(COMMENTS_FOLDER, f"{file_name}.json")
+    if os.path.exists(comments_file):
+        os.remove(comments_file)
+    refresh_file_list()
+
+def delete_all_files():
+    """Delete all files and associated comments."""
+    for file in os.listdir(UPLOAD_FOLDER):
+        delete_single_file(file)
+    refresh_file_list()
+
 # Dashboard
 if menu == "Dashboard":
     st.header("📊 Dashboard")
@@ -116,10 +139,7 @@ elif menu == "View Designs":
     st.header("👁️ View Uploaded Files")
     selected_category = st.selectbox("Choose Category", CATEGORIES)
 
-    if selected_category == "All":
-        files = st.session_state.file_list
-    else:
-        files = [file for file in st.session_state.file_list if parse_category_from_file(file) == selected_category]
+    files = filter_files_by_category(selected_category)
 
     if files:
         for file in files:
@@ -141,7 +161,9 @@ elif menu == "View Designs":
 # Manage Files
 elif menu == "Manage Files":
     st.header("🔧 Manage Uploaded Files")
-    files = st.session_state.file_list
+    selected_category = st.selectbox("Filter by Category", CATEGORIES)
+
+    files = filter_files_by_category(selected_category)
 
     if files:
         selected_file = st.selectbox("Select a file to manage", files)
@@ -163,7 +185,7 @@ elif menu == "Manage Files":
                 refresh_file_list()
 
     else:
-        st.info("No files available to manage.")
+        st.info(f"No files available to manage in {selected_category} category.")
 
     # Delete All Files
     if st.button("Delete All Files"):
@@ -192,7 +214,7 @@ elif menu == "About":
         - Upload and manage design files.
         - Categorize files for better organization.
         - View files by category or see all files at once with previews and download options.
-        - Manage files (delete, replace, or change categories).
+        - Manage files (delete, replace, or change categories) by category.
         - Delete all files at once if needed.
         - Dashboard with detailed stats and recent uploads.
     """)
