@@ -45,6 +45,15 @@ def parse_category_from_file(file_name):
     """Extract the category from the file name."""
     return file_name.split("_")[0] if "_" in file_name else "Other"
 
+def check_duplicate_file(file_name, category):
+    """Check if the file already exists in another category."""
+    for existing_file in st.session_state.file_list:
+        if file_name == existing_file.split("_", 1)[-1]:
+            existing_category = parse_category_from_file(existing_file)
+            if existing_category != category:
+                return existing_category
+    return None
+
 def display_file_preview(file_path, file_type):
     """Render file preview for supported file types."""
     if file_type in ["jpg", "png", "jpeg"]:
@@ -128,9 +137,13 @@ elif menu == "Upload Files":
 
     if uploaded_files:
         for uploaded_file in uploaded_files:
-            file_path = os.path.join(UPLOAD_FOLDER, f"{category}_{uploaded_file.name}")
-            with open(file_path, "wb") as f:
-                f.write(uploaded_file.getbuffer())
+            duplicate_category = check_duplicate_file(uploaded_file.name, category)
+            if duplicate_category:
+                st.error(f"File '{uploaded_file.name}' already exists in the category '{duplicate_category}'.")
+            else:
+                file_path = os.path.join(UPLOAD_FOLDER, f"{category}_{uploaded_file.name}")
+                with open(file_path, "wb") as f:
+                    f.write(uploaded_file.getbuffer())
         refresh_file_list()
         st.success("Files uploaded successfully!")
 
@@ -212,7 +225,7 @@ elif menu == "About":
     st.write("""
         **Structural Design Library** is a web app for civil engineers and architects to:
         - Upload and manage design files.
-        - Categorize files for better organization.
+        - Prevent duplicate files across categories.
         - View files by category or see all files at once with previews and download options.
         - Manage files (delete, replace, or change categories) by category.
         - Delete all files at once if needed.
