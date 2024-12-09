@@ -157,8 +157,11 @@ elif menu == "Manage Files 🔧":
 
 # Help / FAQ
 elif menu == "Help / FAQ ❓":
-    st.header("❓ Help / FAQ")
-    st.write("Here you can find answers to frequently asked questions about using this app.")
+    st.header("Help / FAQ ❓")
+    st.write("""
+        If you have any questions or need support, feel free to reach out via email:
+        **civil.eng2019s@gmail.com**
+    """)
 
 # User Feedback
 elif menu == "User Feedback 💬":
@@ -183,3 +186,16 @@ elif menu == "Export Data 📤":
         ])
         csv = df.to_csv(index=False).encode('utf-8')
         st.download_button(label="Download CSV", data=csv, file_name="file_list.csv", mime="text/csv")
+
+# About
+elif menu == "About ℹ️":
+    st.header("ℹ️ About This App")
+    st.write("""
+        **Structural Design Library** is a web app for civil engineers and architects to:
+        - Upload and manage design files.
+        - View and categorize files efficiently.
+        - Get file analytics and export data.
+    """)
+
+# Footer
+st.sidebar.info("The app created by Eng. Rekar J.")
