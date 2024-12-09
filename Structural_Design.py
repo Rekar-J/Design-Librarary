@@ -9,6 +9,8 @@ import base64
 # Configurable Settings
 APP_NAME = "🏗️ Structural Design Library"
 MAIN_IMAGE = "main_image.jpg"  # Path to your main image (place it in the app folder)
+DASHBOARD_IMAGE = "dashboard_image.jpg"  # Path to the dashboard image
+FEEDBACK_FILE = "feedback.json"  # File to store user feedback
 
 # App Configuration
 st.set_page_config(page_title=APP_NAME, layout="wide")
@@ -78,9 +80,36 @@ def delete_all_files():
         delete_single_file(file)
     refresh_file_list()
 
+def load_feedback():
+    """Load feedback from the JSON file."""
+    if os.path.exists(FEEDBACK_FILE):
+        with open(FEEDBACK_FILE, "r") as f:
+            return json.load(f)
+    return []
+
+def save_feedback(feedback_data):
+    """Save feedback to the JSON file."""
+    with open(FEEDBACK_FILE, "w") as f:
+        json.dump(feedback_data, f, indent=4)
+
 # Dashboard
 if menu == "Dashboard 📊":
     st.header("📊 Dashboard")
+
+    # Dashboard Image
+    st.subheader("Dashboard Image")
+    if os.path.exists(DASHBOARD_IMAGE):
+        st.image(DASHBOARD_IMAGE, use_column_width=True)
+    else:
+        st.warning("Dashboard image not found. Please upload a new image.")
+
+    uploaded_dashboard_image = st.file_uploader("Upload a new dashboard image", type=["jpg", "png"])
+    if uploaded_dashboard_image:
+        with open(DASHBOARD_IMAGE, "wb") as f:
+            f.write(uploaded_dashboard_image.getbuffer())
+        st.success("Dashboard image updated! Refresh the page to see changes.")
+
+    # File Stats
     files = st.session_state.file_list
     stats = {"total": len(files), "categories": {cat: 0 for cat in CATEGORIES if cat != "All"}}
     for file in files:
@@ -115,87 +144,46 @@ elif menu == "Upload Files 📂":
         refresh_file_list()
         st.success("Files uploaded successfully!")
 
-# View Designs
-elif menu == "View Designs 👁️":
-    st.header("👁️ View Uploaded Files")
-    selected_category = st.selectbox("Choose Category", CATEGORIES)
-
-    files = filter_files_by_category(selected_category)
-
-    if files:
-        for file in files:
-            st.subheader(file)
-            file_path = os.path.join(UPLOAD_FOLDER, file)
-            with open(file_path, "rb") as f:
-                st.download_button(
-                    label="Download File",
-                    data=f,
-                    file_name=file,
-                    mime="application/octet-stream"
-                )
-    else:
-        st.info(f"No files found in {selected_category} category.")
-
-# Manage Files
-elif menu == "Manage Files 🔧":
-    st.header("🔧 Manage Uploaded Files")
-    selected_category = st.selectbox("Filter by Category", CATEGORIES)
-
-    files = filter_files_by_category(selected_category)
-
-    if files:
-        selected_file = st.selectbox("Select a file to manage", files)
-
-        if selected_file:
-            st.write(f"Managing: {selected_file}")
-            # Delete Single File
-            if st.button("Delete File"):
-                delete_single_file(selected_file)
-                st.success("File deleted successfully!")
-    else:
-        st.info(f"No files available to manage in {selected_category} category.")
-
-# Help / FAQ
-elif menu == "Help / FAQ ❓":
-    st.header("Help / FAQ ❓")
-    st.write("""
-        If you have any questions or need support, feel free to reach out via email:
-        **civil.eng2019s@gmail.com**
-    """)
-
 # User Feedback
 elif menu == "User Feedback 💬":
     st.header("💬 User Feedback")
     feedback = st.text_area("Share your feedback or report an issue:")
     if st.button("Submit Feedback"):
+        feedback_data = load_feedback()
+        feedback_data.append({
+            "timestamp": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            "feedback": feedback
+        })
+        save_feedback(feedback_data)
         st.success("Thank you for your feedback!")
 
-# File Analytics
-elif menu == "File Analytics 📈":
-    st.header("📈 File Analytics")
-    st.write("Coming soon: Visual insights into uploaded file trends!")
+    st.subheader("Feedback Received")
+    feedback_data = load_feedback()
+    if feedback_data:
+        for item in feedback_data:
+            st.markdown(f"**{item['timestamp']}**: {item['feedback']}")
+            st.markdown("---")
+    else:
+        st.info("No feedback received yet.")
 
 # Export Data
 elif menu == "Export Data 📤":
     st.header("📤 Export Data")
-    if st.button("Export File List as CSV"):
-        files = st.session_state.file_list
+    selected_category = st.selectbox("Filter files by category for export", CATEGORIES)
+
+    files_to_export = filter_files_by_category(selected_category)
+    if files_to_export:
         df = pd.DataFrame([
             {"File Name": file, "Category": parse_category_from_file(file)}
-            for file in files
+            for file in files_to_export
         ])
+        st.write("Preview of data to be exported:")
+        st.table(df)
+
         csv = df.to_csv(index=False).encode('utf-8')
         st.download_button(label="Download CSV", data=csv, file_name="file_list.csv", mime="text/csv")
-
-# About
-elif menu == "About ℹ️":
-    st.header("ℹ️ About This App")
-    st.write("""
-        **Structural Design Library** is a web app for civil engineers and architects to:
-        - Upload and manage design files.
-        - View and categorize files efficiently.
-        - Get file analytics and export data.
-    """)
+    else:
+        st.info(f"No files available in the selected category ({selected_category}).")
 
 # Footer
 st.sidebar.info("The app created by Eng. Rekar J.")
