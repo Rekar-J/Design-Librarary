@@ -7,7 +7,7 @@ import pandas as pd
 import base64
 
 # Configurable Settings
-APP_NAME = "🏗️ Structural Design Library"
+APP_NAME = "🏗️ Structural Design Library ( Eng. Rekar)"
 MAIN_IMAGE = "main_image.jpg"  # Path to your main image (place it in the app folder)
 
 # App Configuration
@@ -16,7 +16,7 @@ st.title(APP_NAME)
 
 # Display Main Image
 if os.path.exists(MAIN_IMAGE):
-    st.image(MAIN_IMAGE, use_column_width=True, caption="Welcome to the Structural Design Library!")
+    st.image(MAIN_IMAGE, use_column_width=True, caption="Welcome to the Structural Design Library ( Eng. Rekar)!")
 else:
     st.warning("Main image not found. Please upload a valid image in the Settings section.")
 
@@ -201,7 +201,7 @@ elif menu == "Export Data 📤":
 elif menu == "About ℹ️":
     st.header("ℹ️ About This App")
     st.write("""
-        **Structural Design Library** is a web app for civil engineers and architects to:
+        **Structural Design Library ( Eng. Rekar)** is a web app for civil engineers and architects to:
         - Upload and manage design files.
         - View and categorize files efficiently.
         - Get file analytics and export data.
