@@ -151,10 +151,10 @@ if menu == "Dashboard 📊":
     # Display Recent Uploads with proper numbering
     st.subheader("Recent Uploads")
     if not db.empty:
-        db.reset_index(drop=True, inplace=True)  # Reset index for proper ordering
-        db.index += 1  # Start numbering from 1
-        db_display = db.rename_axis("No.").reset_index()  # Add numbered index as a column
-        st.dataframe(db_display[["No.", "File Name", "Category", "Upload Date"]])  # Display only relevant columns
+        # Add numbering column and exclude the default index
+        db["No."] = range(1, len(db) + 1)  # Create a 'No.' column with sequential numbers
+        db_display = db[["No.", "File Name", "Category", "Upload Date"]]  # Select relevant columns
+        st.table(db_display)  # Use st.table() for a cleaner display without index
     else:
         st.info("No files uploaded yet.")
 
