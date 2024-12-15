@@ -129,7 +129,6 @@ menu = st.sidebar.radio(
 )
 
 # Dashboard
-# Dashboard
 if menu == "Dashboard 📊":
     st.header("📊 Dashboard")
     load_main_image()
@@ -152,10 +151,10 @@ if menu == "Dashboard 📊":
     # Display Recent Uploads with proper numbering
     st.subheader("Recent Uploads")
     if not db.empty:
-        db.reset_index(drop=True, inplace=True)  # Reset index for proper numbering
+        db.reset_index(drop=True, inplace=True)  # Reset index for proper ordering
         db.index += 1  # Start numbering from 1
         db_display = db.rename_axis("No.").reset_index()  # Add numbered index as a column
-        st.dataframe(db_display)
+        st.dataframe(db_display[["No.", "File Name", "Category", "Upload Date"]])  # Display only relevant columns
     else:
         st.info("No files uploaded yet.")
 
