@@ -1,18 +1,24 @@
 import os
 import streamlit as st
-from PIL import Image
-import json
-import datetime
 import pandas as pd
-import base64
+import datetime
 
 # Configurable Settings
 APP_NAME = "🏗️ Structural Design Library"
-MAIN_IMAGE = "main_image.jpg"  # Path to your main image (place it in the app folder)
+MAIN_IMAGE = "main_image.jpg"  # Path to your main image
+DATABASE_FILE = "database.csv"  # Database file for storing file metadata
+UPLOAD_FOLDER = "uploaded_files"
 
 # App Configuration
 st.set_page_config(page_title=APP_NAME, layout="wide")
 st.title(APP_NAME)
+
+# Ensure directories and files exist
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+if not os.path.exists(DATABASE_FILE):
+    pd.DataFrame(columns=["File Name", "Category", "Upload Date"]).to_csv(DATABASE_FILE, index=False)
+
+CATEGORIES = ["All", "2D Plans", "3D Plans", "Other"]
 
 # Helper Functions
 def load_main_image():
@@ -22,48 +28,37 @@ def load_main_image():
     else:
         st.warning("Main image not found. Please upload a valid image in the Settings section.")
 
-def refresh_file_list():
-    """Refresh the file list in session state."""
-    st.session_state.file_list = os.listdir(UPLOAD_FOLDER)
+def load_database():
+    """Load the database file as a DataFrame."""
+    return pd.read_csv(DATABASE_FILE)
 
-def parse_category_from_file(file_name):
-    """Extract the category from the file name."""
-    if "_" in file_name:
-        prefix = file_name.split("_")[0]
-        if prefix in CATEGORIES[1:]:  # Exclude "All"
-            return prefix
-    return "Other"
+def save_to_database(file_name, category):
+    """Save a new entry to the database."""
+    db = load_database()
+    new_entry = {
+        "File Name": file_name,
+        "Category": category,
+        "Upload Date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    db = db.append(new_entry, ignore_index=True)
+    db.to_csv(DATABASE_FILE, index=False)
+
+def delete_from_database(file_name):
+    """Delete an entry from the database."""
+    db = load_database()
+    db = db[db["File Name"] != file_name]
+    db.to_csv(DATABASE_FILE, index=False)
+
+def delete_all_from_database():
+    """Clear all entries from the database."""
+    pd.DataFrame(columns=["File Name", "Category", "Upload Date"]).to_csv(DATABASE_FILE, index=False)
 
 def filter_files_by_category(category):
     """Filter files by category."""
+    db = load_database()
     if category == "All":
-        return st.session_state.file_list
-    return [file for file in st.session_state.file_list if parse_category_from_file(file) == category]
-
-def delete_single_file(file_name):
-    """Delete a single file."""
-    file_path = os.path.join(UPLOAD_FOLDER, file_name)
-    if os.path.isfile(file_path):
-        os.remove(file_path)
-    refresh_file_list()
-
-def delete_all_files():
-    """Delete all files."""
-    for file in os.listdir(UPLOAD_FOLDER):
-        delete_single_file(file)
-    refresh_file_list()
-
-# Create necessary directories
-UPLOAD_FOLDER = "uploaded_files"
-COMMENTS_FOLDER = "comments"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(COMMENTS_FOLDER, exist_ok=True)
-
-# Initialize session state for file management
-if "file_list" not in st.session_state:
-    st.session_state.file_list = os.listdir(UPLOAD_FOLDER)
-
-CATEGORIES = ["All", "2D Plans", "3D Plans", "Other"]
+        return db
+    return db[db["Category"] == category]
 
 # Sidebar Navigation
 st.sidebar.title("Navigation")
@@ -87,22 +82,20 @@ menu = st.sidebar.radio(
 if menu == "Dashboard 📊":
     st.header("📊 Dashboard")
     load_main_image()
-    files = st.session_state.file_list
-    stats = {"total": len(files), "categories": {cat: 0 for cat in CATEGORIES if cat != "All"}}
-    for file in files:
-        category = parse_category_from_file(file)
-        if category in stats["categories"]:
-            stats["categories"][category] += 1
+    db = load_database()
 
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Total Files", stats["total"])
+        st.metric("Total Files", len(db))
     with col2:
-        st.metric("2D Plans", stats["categories"]["2D Plans"])
+        st.metric("2D Plans", len(db[db["Category"] == "2D Plans"]))
     with col3:
-        st.metric("3D Plans", stats["categories"]["3D Plans"])
+        st.metric("3D Plans", len(db[db["Category"] == "3D Plans"]))
     with col4:
-        st.metric("Other", stats["categories"]["Other"])
+        st.metric("Other", len(db[db["Category"] == "Other"]))
+
+    st.subheader("Recent Uploads")
+    st.dataframe(db.sort_values("Upload Date", ascending=False))
 
 # Upload Files
 elif menu == "Upload Files 📂":
@@ -115,28 +108,27 @@ elif menu == "Upload Files 📂":
 
     if uploaded_files:
         for uploaded_file in uploaded_files:
-            file_path = os.path.join(UPLOAD_FOLDER, f"{category}_{uploaded_file.name}")
+            file_path = os.path.join(UPLOAD_FOLDER, uploaded_file.name)
             with open(file_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
-        refresh_file_list()
+            save_to_database(uploaded_file.name, category)
         st.success("Files uploaded successfully!")
 
 # View Designs
 elif menu == "View Designs 👁️":
     st.header("👁️ View Uploaded Files")
     selected_category = st.selectbox("Choose Category", CATEGORIES)
+    db = filter_files_by_category(selected_category)
 
-    files = filter_files_by_category(selected_category)
-
-    if files:
-        for file in files:
-            st.subheader(file)
-            file_path = os.path.join(UPLOAD_FOLDER, file)
+    if not db.empty:
+        for _, row in db.iterrows():
+            st.subheader(row["File Name"])
+            file_path = os.path.join(UPLOAD_FOLDER, row["File Name"])
             with open(file_path, "rb") as f:
                 st.download_button(
                     label="Download File",
                     data=f,
-                    file_name=file,
+                    file_name=row["File Name"],
                     mime="application/octet-stream"
                 )
     else:
@@ -146,21 +138,26 @@ elif menu == "View Designs 👁️":
 elif menu == "Manage Files 🔧":
     st.header("🔧 Manage Uploaded Files")
     selected_category = st.selectbox("Filter by Category", CATEGORIES)
+    db = filter_files_by_category(selected_category)
 
-    files = filter_files_by_category(selected_category)
-
-    if files:
-        selected_file = st.selectbox("Select a file to manage", files)
+    if not db.empty:
+        selected_file = st.selectbox("Select a file to manage", db["File Name"])
 
         if selected_file:
-            st.write(f"Managing: {selected_file}")
             # Delete Single File
             if st.button("Delete File"):
-                delete_single_file(selected_file)
+                file_path = os.path.join(UPLOAD_FOLDER, selected_file)
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                delete_from_database(selected_file)
                 st.success("File deleted successfully!")
         # Delete All Files
         if st.button("Delete All Files"):
-            delete_all_files()
+            for file_name in db["File Name"]:
+                file_path = os.path.join(UPLOAD_FOLDER, file_name)
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            delete_all_from_database()
             st.success("All files deleted successfully!")
     else:
         st.info(f"No files available to manage in {selected_category} category.")
@@ -184,39 +181,9 @@ elif menu == "Help / FAQ ❓":
         **civil.eng2019s@gmail.com**
     """)
 
-# User Feedback
-elif menu == "User Feedback 💬":
-    st.header("💬 User Feedback")
-    feedback = st.text_area("Share your feedback or report an issue:")
-    if st.button("Submit Feedback"):
-        st.success("Thank you for your feedback!")
-
-# File Analytics
-elif menu == "File Analytics 📈":
-    st.header("📈 File Analytics")
-    st.write("Coming soon: Visual insights into uploaded file trends!")
-
 # Export Data
 elif menu == "Export Data 📤":
     st.header("📤 Export Data")
-    if st.button("Export File List as CSV"):
-        files = st.session_state.file_list
-        df = pd.DataFrame([
-            {"File Name": file, "Category": parse_category_from_file(file)}
-            for file in files
-        ])
-        csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button(label="Download CSV", data=csv, file_name="file_list.csv", mime="text/csv")
-
-# About
-elif menu == "About ℹ️":
-    st.header("ℹ️ About This App")
-    st.write("""
-        **Structural Design Library** is a web app for civil engineers and architects to:
-        - Upload and manage design files.
-        - View and categorize files efficiently.
-        - Get file analytics and export data.
-    """)
-
-# Footer
-st.sidebar.info("The app created by Eng. Rekar J.")
+    db = load_database()  # Load the database.csv in the app
+    st.write("Current Database Content:")
+    st.dataframe(db)  # Display the current database content
