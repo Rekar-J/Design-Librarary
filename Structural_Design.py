@@ -12,8 +12,6 @@ UPLOAD_FOLDER = "uploaded_files"
 
 # GitHub Configuration
 GITHUB_TOKEN = st.secrets["github"]["token"]
-GITHUB_REPO = "your_username/your_repo_name"  # Replace with your GitHub repo details
-GITHUB_URL = f"https://{GITHUB_TOKEN}@github.com/{GITHUB_REPO}.git"
 
 # App Configuration
 st.set_page_config(page_title=APP_NAME, layout="wide")
@@ -55,7 +53,8 @@ def update_github():
     """Commit and push the updated database.csv to GitHub."""
     try:
         # Set the GitHub remote URL with authentication
-        subprocess.run(["git", "remote", "set-url", "origin", GITHUB_URL], check=True)
+        remote_url = f"https://{GITHUB_TOKEN}@github.com"
+        subprocess.run(["git", "remote", "set-url", "origin", remote_url], check=True)
 
         # Stage the database.csv file
         subprocess.run(["git", "add", "database.csv"], check=True)
@@ -128,3 +127,26 @@ elif menu == "Upload Files 📂":
 
         # Push changes to GitHub
         update_github()
+
+# View Designs
+elif menu == "View Designs 👁️":
+    st.header("👁️ View Uploaded Files")
+    selected_category = st.selectbox("Choose Category", CATEGORIES)
+    db = filter_files_by_category(selected_category)
+
+    if not db.empty:
+        for i, row in db.iterrows():
+            st.subheader(row["File Name"])
+            file_path = os.path.join(UPLOAD_FOLDER, row["File Name"])
+            with open(file_path, "rb") as f:
+                st.download_button(
+                    label="Download File",
+                    data=f,
+                    file_name=row["File Name"],
+                    mime="application/octet-stream",
+                    key=f"download_{i}"  # Unique key for each button
+                )
+    else:
+        st.info(f"No files found in {selected_category} category.")
+
+# Remaining sections (Manage Files, Settings, Help, etc.) go unchanged.
