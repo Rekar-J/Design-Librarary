@@ -7,18 +7,63 @@ import pandas as pd
 import base64
 
 # Configurable Settings
-APP_NAME = "🏗️ Structural Design Library ( Eng. Rekar)"
+APP_NAME = "🏗️ Structural Design Library"
 MAIN_IMAGE = "main_image.jpg"  # Path to your main image (place it in the app folder)
 
 # App Configuration
 st.set_page_config(page_title=APP_NAME, layout="wide")
 st.title(APP_NAME)
 
-# Display Main Image
-if os.path.exists(MAIN_IMAGE):
-    st.image(MAIN_IMAGE, use_column_width=True, caption="Welcome to the Structural Design Library ( Eng. Rekar)!")
-else:
-    st.warning("Main image not found. Please upload a valid image in the Settings section.")
+# Helper Functions
+def load_main_image():
+    """Load and display the main image."""
+    if os.path.exists(MAIN_IMAGE):
+        st.image(MAIN_IMAGE, use_column_width=True, caption="Welcome to the Structural Design Library!")
+    else:
+        st.warning("Main image not found. Please upload a valid image in the Settings section.")
+
+def refresh_file_list():
+    """Refresh the file list in session state."""
+    st.session_state.file_list = os.listdir(UPLOAD_FOLDER)
+
+def parse_category_from_file(file_name):
+    """Extract the category from the file name."""
+    if "_" in file_name:
+        prefix = file_name.split("_")[0]
+        if prefix in CATEGORIES[1:]:  # Exclude "All"
+            return prefix
+    return "Other"
+
+def filter_files_by_category(category):
+    """Filter files by category."""
+    if category == "All":
+        return st.session_state.file_list
+    return [file for file in st.session_state.file_list if parse_category_from_file(file) == category]
+
+def delete_single_file(file_name):
+    """Delete a single file."""
+    file_path = os.path.join(UPLOAD_FOLDER, file_name)
+    if os.path.isfile(file_path):
+        os.remove(file_path)
+    refresh_file_list()
+
+def delete_all_files():
+    """Delete all files."""
+    for file in os.listdir(UPLOAD_FOLDER):
+        delete_single_file(file)
+    refresh_file_list()
+
+# Create necessary directories
+UPLOAD_FOLDER = "uploaded_files"
+COMMENTS_FOLDER = "comments"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(COMMENTS_FOLDER, exist_ok=True)
+
+# Initialize session state for file management
+if "file_list" not in st.session_state:
+    st.session_state.file_list = os.listdir(UPLOAD_FOLDER)
+
+CATEGORIES = ["All", "2D Plans", "3D Plans", "Other"]
 
 # Sidebar Navigation
 st.sidebar.title("Navigation")
@@ -38,49 +83,10 @@ menu = st.sidebar.radio(
     ]
 )
 
-# Create necessary directories
-UPLOAD_FOLDER = "uploaded_files"
-COMMENTS_FOLDER = "comments"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(COMMENTS_FOLDER, exist_ok=True)
-
-CATEGORIES = ["All", "2D Plans", "3D Plans", "Other"]
-
-# Initialize session state for file management
-if "file_list" not in st.session_state:
-    st.session_state.file_list = os.listdir(UPLOAD_FOLDER)
-
-# Helper Functions
-def refresh_file_list():
-    """Refresh the file list in session state."""
-    st.session_state.file_list = os.listdir(UPLOAD_FOLDER)
-
-def parse_category_from_file(file_name):
-    """Extract the category from the file name."""
-    return file_name.split("_")[0] if "_" in file_name else "Other"
-
-def filter_files_by_category(category):
-    """Filter files by category."""
-    if category == "All":
-        return st.session_state.file_list
-    return [file for file in st.session_state.file_list if parse_category_from_file(file) == category]
-
-def delete_single_file(file_name):
-    """Delete a single file and its associated comments."""
-    file_path = os.path.join(UPLOAD_FOLDER, file_name)
-    if os.path.isfile(file_path):
-        os.remove(file_path)
-    refresh_file_list()
-
-def delete_all_files():
-    """Delete all files and associated comments."""
-    for file in os.listdir(UPLOAD_FOLDER):
-        delete_single_file(file)
-    refresh_file_list()
-
 # Dashboard
 if menu == "Dashboard 📊":
     st.header("📊 Dashboard")
+    load_main_image()
     files = st.session_state.file_list
     stats = {"total": len(files), "categories": {cat: 0 for cat in CATEGORIES if cat != "All"}}
     for file in files:
@@ -98,7 +104,7 @@ if menu == "Dashboard 📊":
     with col4:
         st.metric("Other", stats["categories"]["Other"])
 
-# File Upload Module
+# Upload Files
 elif menu == "Upload Files 📂":
     st.header("📂 Upload and Manage Files")
     uploaded_files = st.file_uploader(
@@ -163,7 +169,8 @@ elif menu == "Settings ⚙️":
         if uploaded_main_image:
             with open(MAIN_IMAGE, "wb") as f:
                 f.write(uploaded_main_image.getbuffer())
-            st.success("Main image updated! Please refresh the page to see the changes.")
+            st.success("Main image updated!")
+            load_main_image()
 
 # Help / FAQ
 elif menu == "Help / FAQ ❓":
@@ -201,7 +208,7 @@ elif menu == "Export Data 📤":
 elif menu == "About ℹ️":
     st.header("ℹ️ About This App")
     st.write("""
-        **Structural Design Library ( Eng. Rekar)** is a web app for civil engineers and architects to:
+        **Structural Design Library** is a web app for civil engineers and architects to:
         - Upload and manage design files.
         - View and categorize files efficiently.
         - Get file analytics and export data.
