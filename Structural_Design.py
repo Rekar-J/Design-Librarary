@@ -46,12 +46,19 @@ def save_to_database(file_name, category):
         db = pd.concat([db, new_entry], ignore_index=True)
         db.to_csv(DATABASE_FILE, index=False)
 
-st.write(subprocess.run(["git", "status"], capture_output=True, text=True).stdout)
 def update_github():
     """Commit and push the updated database.csv to GitHub."""
     try:
-        # Commit changes
+        # Stage only database.csv
         subprocess.run(["git", "add", "database.csv"], check=True)
+
+        # Check for changes to commit
+        status = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True).stdout
+        if not status.strip():
+            st.info("No changes detected in database.csv. Skipping commit.")
+            return
+
+        # Commit and push the changes
         subprocess.run(["git", "commit", "-m", "Update database.csv"], check=True)
         subprocess.run(["git", "push"], check=True)
         st.success("database.csv updated on GitHub successfully!")
