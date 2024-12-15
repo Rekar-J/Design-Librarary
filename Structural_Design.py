@@ -33,15 +33,18 @@ def load_database():
     return pd.read_csv(DATABASE_FILE)
 
 def save_to_database(file_name, category):
-    """Save a new entry to the database."""
+    """Save a new entry to the database, ensuring no duplicates."""
     db = load_database()
-    new_entry = pd.DataFrame([{
-        "File Name": file_name,
-        "Category": category,
-        "Upload Date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }])
-    db = pd.concat([db, new_entry], ignore_index=True)
-    db.to_csv(DATABASE_FILE, index=False)
+    if file_name not in db["File Name"].values:
+        new_entry = pd.DataFrame([{
+            "File Name": file_name,
+            "Category": category,
+            "Upload Date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }])
+        db = pd.concat([db, new_entry], ignore_index=True)
+        db.to_csv(DATABASE_FILE, index=False)
+    else:
+        st.warning(f"The file '{file_name}' already exists in the database.")
 
 def delete_from_database(file_name):
     """Delete an entry from the database."""
