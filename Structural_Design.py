@@ -32,9 +32,10 @@ def load_main_image():
         st.warning("Main image not found. Please upload a valid image in the Settings section.")
 
 def load_database():
-    """Load the database file as a DataFrame."""
+    """Load the database file as a DataFrame and handle date format."""
     db = pd.read_csv(DATABASE_FILE)
-    db["Upload Date"] = pd.to_datetime(db["Upload Date"], errors='coerce').dt.date  # Format Upload Date
+    # Ensure Upload Date is consistent (YYYY-MM-DD)
+    db["Upload Date"] = pd.to_datetime(db["Upload Date"], format="%Y-%m-%d", errors='coerce').dt.date
     return db
 
 def save_to_database(file_name, category):
@@ -44,7 +45,7 @@ def save_to_database(file_name, category):
         new_entry = pd.DataFrame([{
             "File Name": file_name,
             "Category": category,
-            "Upload Date": datetime.date.today()
+            "Upload Date": datetime.date.today()  # Save date in consistent format
         }])
         db = pd.concat([db, new_entry], ignore_index=True)
         db.to_csv(DATABASE_FILE, index=False)
