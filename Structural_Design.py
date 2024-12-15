@@ -2,22 +2,33 @@ import os
 import streamlit as st
 import pandas as pd
 import datetime
-import matplotlib.pyplot as plt
+
+# Try importing matplotlib, catch ImportError
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    st.error("Matplotlib is not installed. Please ensure it is added to requirements.txt.")
+    plt = None
+
 from PIL import Image
 
 # Configurable Settings
 APP_NAME = "🏗️ Structural Design Library"
-MAIN_IMAGE = "main_image.jpg"
-DATABASE_FILE = "database.csv"
+MAIN_IMAGE = "main_image.jpg"  # Path to your main image
+DATABASE_FILE = "database.csv"  # Database file for storing file metadata
 UPLOAD_FOLDER = "uploaded_files"
 LOG_FILE = "activity_log.csv"
 
 # App Configuration
-st.set_page_config(page_title=APP_NAME, layout="wide", menu_items={
-    'Get Help': 'mailto:civil.eng2019s@gmail.com',
-    'Report a bug': 'mailto:civil.eng2019s@gmail.com',
-    'About': f"{APP_NAME} - Manage your structural design files efficiently."
-})
+st.set_page_config(
+    page_title=APP_NAME,
+    layout="wide",
+    menu_items={
+        'Get Help': 'mailto:civil.eng2019s@gmail.com',
+        'Report a bug': 'mailto:civil.eng2019s@gmail.com',
+        'About': f"{APP_NAME} - Manage your structural design files efficiently."
+    }
+)
 
 # Ensure directories and files exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -96,12 +107,14 @@ if menu == "Dashboard 📊":
     load_main_image()
     db = load_database()
 
-    # File Statistics Pie Chart
-    fig, ax = plt.subplots()
-    category_counts = db["Category"].value_counts()
-    ax.pie(category_counts, labels=category_counts.index, autopct='%1.1f%%', startangle=90)
-    ax.set_title("File Category Distribution")
-    st.pyplot(fig)
+    if plt:
+        # File Statistics Pie Chart
+        st.subheader("File Category Distribution")
+        fig, ax = plt.subplots()
+        category_counts = db["Category"].value_counts()
+        ax.pie(category_counts, labels=category_counts.index, autopct='%1.1f%%', startangle=90)
+        ax.set_title("File Category Distribution")
+        st.pyplot(fig)
 
     # Recent Uploads as Cards
     st.subheader("Recent Uploads")
