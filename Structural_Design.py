@@ -32,10 +32,10 @@ def load_main_image():
         st.warning("Main image not found. Please upload a valid image in the Settings section.")
 
 def load_database():
-    """Load the database file as a DataFrame and handle date format."""
+    """Load the database file as a DataFrame."""
     db = pd.read_csv(DATABASE_FILE)
-    # Ensure Upload Date is consistent (YYYY-MM-DD)
-    db["Upload Date"] = pd.to_datetime(db["Upload Date"], format="%Y-%m-%d", errors='coerce').dt.date
+    # Ensure Upload Date is in consistent format (YYYY-MM-DD)
+    db["Upload Date"] = pd.to_datetime(db["Upload Date"], format="%Y-%m-%d", errors="coerce").dt.date
     return db
 
 def save_to_database(file_name, category):
@@ -68,13 +68,11 @@ def filter_files_by_category(category):
     return db[db["Category"] == category]
 
 def update_github_database():
-    """
-    Push the updated database.csv to GitHub.
-    """
-    github_token = st.secrets["GITHUB_TOKEN"]  # Load GitHub token from Streamlit secrets
+    """Push the updated database.csv to GitHub."""
+    github_token = st.secrets.get("GITHUB_TOKEN")  # Load GitHub token from Streamlit secrets
     if not github_token:
         st.error("GitHub token is missing. Please set the GITHUB_TOKEN in Streamlit secrets.")
-        return
+        return False
 
     try:
         # Authenticate with GitHub
@@ -95,7 +93,7 @@ def update_github_database():
                 sha=file.sha,
             )
             st.success("Database successfully updated on GitHub!")
-        except Exception:
+        except Exception as e:
             # If the file doesn't exist, create it
             repo.create_file(
                 path=DATABASE_FILE,
@@ -103,8 +101,10 @@ def update_github_database():
                 content=content,
             )
             st.success("Database created and uploaded to GitHub!")
+        return True
     except Exception as e:
         st.error(f"Failed to update GitHub: {e}")
+        return False
 
 # Sidebar Navigation
 st.sidebar.title("Navigation")
@@ -166,4 +166,5 @@ elif menu == "Upload Files 📂":
         st.success("Files uploaded successfully!")
 
         # Push database.csv to GitHub
-        update_github_database()
+        if not update_github_database():
+            st.warning("Database update to GitHub failed. Check logs for details.")
