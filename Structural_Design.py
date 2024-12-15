@@ -2,12 +2,18 @@ import os
 import streamlit as st
 import pandas as pd
 import datetime
+import subprocess
 
 # Configurable Settings
 APP_NAME = "🏗️ Structural Design Library"
 MAIN_IMAGE = "main_image.jpg"  # Path to your main image
 DATABASE_FILE = "database.csv"  # Database file for storing file metadata
 UPLOAD_FOLDER = "uploaded_files"
+
+# GitHub Configuration
+GITHUB_TOKEN = st.secrets["github"]["token"]
+GITHUB_REPO = "your_username/your_repo_name"  # Replace with your GitHub repo details
+GITHUB_URL = f"https://{GITHUB_TOKEN}@github.com/{GITHUB_REPO}.git"
 
 # App Configuration
 st.set_page_config(page_title=APP_NAME, layout="wide")
@@ -45,22 +51,28 @@ def save_to_database(file_name, category):
         db = pd.concat([db, new_entry], ignore_index=True)
         db.to_csv(DATABASE_FILE, index=False)
 
-def delete_from_database(file_name):
-    """Delete an entry from the database."""
-    db = load_database()
-    db = db[db["File Name"] != file_name]
-    db.to_csv(DATABASE_FILE, index=False)
+def update_github():
+    """Commit and push the updated database.csv to GitHub."""
+    try:
+        # Set the GitHub remote URL with authentication
+        subprocess.run(["git", "remote", "set-url", "origin", GITHUB_URL], check=True)
 
-def delete_all_from_database():
-    """Clear all entries from the database."""
-    pd.DataFrame(columns=["File Name", "Category", "Upload Date"]).to_csv(DATABASE_FILE, index=False)
+        # Stage the database.csv file
+        subprocess.run(["git", "add", "database.csv"], check=True)
 
-def filter_files_by_category(category):
-    """Filter files by category."""
-    db = load_database()
-    if category == "All":
-        return db
-    return db[db["Category"] == category]
+        # Check for changes before committing
+        status = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True).stdout
+        if not status.strip():
+            st.info("No changes detected in database.csv. Skipping commit.")
+            return
+
+        # Commit and push the changes
+        subprocess.run(["git", "commit", "-m", "Update database.csv"], check=True)
+        subprocess.run(["git", "push"], check=True)
+
+        st.success("database.csv updated on GitHub successfully!")
+    except subprocess.CalledProcessError as e:
+        st.error(f"Error updating GitHub: {e}")
 
 # Sidebar Navigation
 st.sidebar.title("Navigation")
@@ -73,8 +85,6 @@ menu = st.sidebar.radio(
         "Manage Files 🔧",
         "Settings ⚙️",
         "Help / FAQ ❓",
-        "User Feedback 💬",
-        "File Analytics 📈",
         "Export Data 📤",
         "About ℹ️"
     ]
@@ -116,77 +126,5 @@ elif menu == "Upload Files 📂":
             save_to_database(uploaded_file.name, category)
         st.success("Files uploaded successfully!")
 
-# View Designs
-elif menu == "View Designs 👁️":
-    st.header("👁️ View Uploaded Files")
-    selected_category = st.selectbox("Choose Category", CATEGORIES)
-    db = filter_files_by_category(selected_category)
-
-    if not db.empty:
-        for i, row in db.iterrows():
-            st.subheader(row["File Name"])
-            file_path = os.path.join(UPLOAD_FOLDER, row["File Name"])
-            with open(file_path, "rb") as f:
-                st.download_button(
-                    label="Download File",
-                    data=f,
-                    file_name=row["File Name"],
-                    mime="application/octet-stream",
-                    key=f"download_{i}"  # Unique key for each button
-                )
-    else:
-        st.info(f"No files found in {selected_category} category.")
-
-# Manage Files
-elif menu == "Manage Files 🔧":
-    st.header("🔧 Manage Uploaded Files")
-    selected_category = st.selectbox("Filter by Category", CATEGORIES)
-    db = filter_files_by_category(selected_category)
-
-    if not db.empty:
-        selected_file = st.selectbox("Select a file to manage", db["File Name"])
-
-        if selected_file:
-            # Delete Single File
-            if st.button("Delete File"):
-                file_path = os.path.join(UPLOAD_FOLDER, selected_file)
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-                delete_from_database(selected_file)
-                st.success("File deleted successfully!")
-        # Delete All Files
-        if st.button("Delete All Files"):
-            for file_name in db["File Name"]:
-                file_path = os.path.join(UPLOAD_FOLDER, file_name)
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-            delete_all_from_database()
-            st.success("All files deleted successfully!")
-    else:
-        st.info(f"No files available to manage in {selected_category} category.")
-
-# Settings
-elif menu == "Settings ⚙️":
-    st.header("⚙️ Settings")
-    uploaded_main_image = st.file_uploader("Upload a new main image (jpg/png):", type=["jpg", "png"])
-    if st.button("Update Main Image"):
-        if uploaded_main_image:
-            with open(MAIN_IMAGE, "wb") as f:
-                f.write(uploaded_main_image.getbuffer())
-            st.success("Main image updated!")
-            load_main_image()
-
-# Help / FAQ
-elif menu == "Help / FAQ ❓":
-    st.header("Help / FAQ ❓")
-    st.write("""
-        If you have any questions or need support, feel free to reach out via email:
-        **civil.eng2019s@gmail.com**
-    """)
-
-# Export Data
-elif menu == "Export Data 📤":
-    st.header("📤 Export Data")
-    db = load_database()  # Load the database.csv in the app
-    st.write("Current Database Content:")
-    st.dataframe(db)  # Display the current database content
+        # Push changes to GitHub
+        update_github()
