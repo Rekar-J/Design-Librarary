@@ -18,7 +18,7 @@ st.title(APP_NAME)
 def load_main_image():
     """Load and display the main image."""
     if os.path.exists(MAIN_IMAGE):
-        st.image(MAIN_IMAGE, use_column_width=True, caption="Welcome to the Structural Design Library!")
+        st.image(MAIN_IMAGE, use_container_width=True, caption="Welcome to the Structural Design Library!")
     else:
         st.warning("Main image not found. Please upload a valid image in the Settings section.")
 
@@ -158,6 +158,10 @@ elif menu == "Manage Files 🔧":
             if st.button("Delete File"):
                 delete_single_file(selected_file)
                 st.success("File deleted successfully!")
+        # Delete All Files
+        if st.button("Delete All Files"):
+            delete_all_files()
+            st.success("All files deleted successfully!")
     else:
         st.info(f"No files available to manage in {selected_category} category.")
 
