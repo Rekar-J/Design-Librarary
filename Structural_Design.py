@@ -94,16 +94,16 @@ st.sidebar.title("Navigation")
 menu = st.sidebar.radio(
     "Go to",
     [
-        "Dashboard \ud83d\udcca",
-        "Upload Files \ud83d\udcc2",
-        "View Designs \ud83d\udd41\ufe0f",
-        "Settings \u2699\ufe0f",
+        "Dashboard 📊",
+        "Upload Files 📂",
+        "View Designs 👁️",
+        "Settings ⚙️",
     ]
 )
 
 # Dashboard
-if menu == "Dashboard \ud83d\udcca":
-    st.header("\ud83d\udcca Dashboard")
+if menu == "Dashboard 📊":
+    st.header("📊 Dashboard")
     load_main_image()
     db = load_database()
 
@@ -121,8 +121,8 @@ if menu == "Dashboard \ud83d\udcca":
     st.dataframe(db.sort_values("Upload Date", ascending=False))
 
 # Upload Files
-elif menu == "Upload Files \ud83d\udcc2":
-    st.header("\ud83d\udcc2 Upload and Manage Files")
+elif menu == "Upload Files 📂":
+    st.header("📂 Upload and Manage Files")
     uploaded_files = st.file_uploader(
         "Upload your design files (.pdf, .txt, .jpg, .png, .dwg, .skp)", 
         accept_multiple_files=True
@@ -138,8 +138,8 @@ elif menu == "Upload Files \ud83d\udcc2":
         st.success("Files uploaded successfully!")
 
 # View Designs
-elif menu == "View Designs \ud83d\udd41\ufe0f":
-    st.header("\ud83d\udd41\ufe0f View Uploaded Files")
+elif menu == "View Designs 👁️":
+    st.header("👁️ View Uploaded Files")
     selected_category = st.selectbox("Choose Category", CATEGORIES)
     db = load_database()
 
@@ -153,8 +153,8 @@ elif menu == "View Designs \ud83d\udd41\ufe0f":
         st.info(f"No files found in {selected_category} category.")
 
 # Settings
-elif menu == "Settings \u2699\ufe0f":
-    st.header("\u2699\ufe0f Settings")
+elif menu == "Settings ⚙️":
+    st.header("⚙️ Settings")
     uploaded_main_image = st.file_uploader("Upload a new main image (jpg/png):", type=["jpg", "png"])
     if st.button("Update Main Image"):
         if uploaded_main_image:
