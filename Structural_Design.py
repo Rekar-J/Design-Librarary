@@ -16,6 +16,7 @@ st.title(APP_NAME)
 # Ensure directories and files exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 if not os.path.exists(DATABASE_FILE):
+    # Create the database.csv file with the appropriate structure
     pd.DataFrame(columns=["File Name", "Category", "Upload Date"]).to_csv(DATABASE_FILE, index=False)
 
 CATEGORIES = ["All", "2D Plans", "3D Plans", "Other"]
@@ -33,18 +34,15 @@ def load_database():
     return pd.read_csv(DATABASE_FILE)
 
 def save_to_database(file_name, category):
-    """Save a new entry to the database, ensuring no duplicates."""
+    """Save a new entry to the database."""
     db = load_database()
-    if file_name not in db["File Name"].values:
-        new_entry = pd.DataFrame([{
-            "File Name": file_name,
-            "Category": category,
-            "Upload Date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        }])
-        db = pd.concat([db, new_entry], ignore_index=True)
-        db.to_csv(DATABASE_FILE, index=False)
-    else:
-        st.warning(f"The file '{file_name}' already exists in the database.")
+    new_entry = pd.DataFrame([{
+        "File Name": file_name,
+        "Category": category,
+        "Upload Date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }])
+    db = pd.concat([db, new_entry], ignore_index=True)
+    db.to_csv(DATABASE_FILE, index=False)
 
 def delete_from_database(file_name):
     """Delete an entry from the database."""
