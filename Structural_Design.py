@@ -48,7 +48,7 @@ def save_to_database(file_name, category):
         new_entry = pd.DataFrame([{
             "File Name": file_name,
             "Category": category,
-            "Upload Date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            "Upload Date": datetime.datetime.now().strftime("%Y-%m-%d")
         }])
         db = pd.concat([db, new_entry], ignore_index=True)
         db.to_csv(DATABASE_FILE, index=False)
@@ -151,13 +151,11 @@ if menu == "Dashboard 📊":
     # Display Recent Uploads with proper numbering
     st.subheader("Recent Uploads")
     if not db.empty:
-        # Add numbering column and exclude the default index
         db["No."] = range(1, len(db) + 1)  # Create a 'No.' column with sequential numbers
         db_display = db[["No.", "File Name", "Category", "Upload Date"]]  # Select relevant columns
-        st.table(db_display)  # Use st.table() for a cleaner display without index
+        st.table(db_display)  # Use st.table() for a clean display
     else:
         st.info("No files uploaded yet.")
-
 
 # Upload Files
 elif menu == "Upload Files 📂":
@@ -253,3 +251,14 @@ elif menu == "Export Data 📤":
     db = load_database()  # Load the database.csv in the app
     st.write("Current Database Content:")
     st.dataframe(db)  # Display the current database content
+
+# Footer
+st.markdown("---")
+st.markdown(
+    """
+    <div style='text-align: center; font-size: 0.9em; color: grey;'>
+        © 2024 Structural Design Library | Developed by Rekar-J
+    </div>
+    """,
+    unsafe_allow_html=True
+)
