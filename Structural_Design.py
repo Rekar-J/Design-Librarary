@@ -37,8 +37,19 @@ def load_main_image():
 
 
 def load_database():
-    """Load the database file as a DataFrame."""
-    return pd.read_csv(DATABASE_FILE)
+    """Load the database file as a DataFrame and fix invalid dates."""
+    db = pd.read_csv(DATABASE_FILE)
+
+    # Ensure 'Upload Date' is in the correct format and replace invalid dates with today's date
+    db["Upload Date"] = pd.to_datetime(db["Upload Date"], errors='coerce').dt.date
+    invalid_dates = db[db["Upload Date"].isna()]
+    if not invalid_dates.empty:
+        # Replace invalid/missing dates with today's date
+        db["Upload Date"] = db["Upload Date"].fillna(datetime.date.today())
+        db.to_csv(DATABASE_FILE, index=False)  # Save the fixed database
+        st.warning(f"Some invalid dates were found and replaced with today's date: {len(invalid_dates)}")
+
+    return db
 
 
 def save_to_database(file_name, category):
@@ -48,7 +59,7 @@ def save_to_database(file_name, category):
         new_entry = pd.DataFrame([{
             "File Name": file_name,
             "Category": category,
-            "Upload Date": datetime.datetime.now().strftime("%Y-%m-%d")
+            "Upload Date": datetime.date.today()
         }])
         db = pd.concat([db, new_entry], ignore_index=True)
         db.to_csv(DATABASE_FILE, index=False)
@@ -134,15 +145,6 @@ if menu == "Dashboard 📊":
     load_main_image()
     db = load_database()
 
-    # Format the Upload Date to show only the date (YYYY-MM-DD) and handle errors
-    db["Upload Date"] = pd.to_datetime(db["Upload Date"], errors='coerce').dt.date
-
-    # Handle rows with invalid dates (if any)
-    invalid_dates = db[db["Upload Date"].isna()]
-    if not invalid_dates.empty:
-        st.warning(f"Some entries have invalid dates and will be skipped: {len(invalid_dates)}")
-        db = db.dropna(subset=["Upload Date"])  # Drop rows with invalid dates
-
     # Display Metrics
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -163,7 +165,6 @@ if menu == "Dashboard 📊":
     else:
         st.info("No files uploaded yet.")
 
-
 # Upload Files
 elif menu == "Upload Files 📂":
     st.header("📂 Upload and Manage Files")
@@ -183,81 +184,6 @@ elif menu == "Upload Files 📂":
 
         # Push database.csv to GitHub
         update_github_database()
-
-# View Designs
-elif menu == "View Designs 👁️":
-    st.header("👁️ View Uploaded Files")
-    selected_category = st.selectbox("Choose Category", CATEGORIES)
-    db = filter_files_by_category(selected_category)
-
-    if not db.empty:
-        for i, row in db.iterrows():
-            st.subheader(row["File Name"])
-            file_path = os.path.join(UPLOAD_FOLDER, row["File Name"])
-            with open(file_path, "rb") as f:
-                st.download_button(
-                    label="Download File",
-                    data=f,
-                    file_name=row["File Name"],
-                    mime="application/octet-stream",
-                    key=f"download_{i}"  # Unique key for each button
-                )
-    else:
-        st.info(f"No files found in {selected_category} category.")
-
-# Manage Files
-elif menu == "Manage Files 🔧":
-    st.header("🔧 Manage Uploaded Files")
-    selected_category = st.selectbox("Filter by Category", CATEGORIES)
-    db = filter_files_by_category(selected_category)
-
-    if not db.empty:
-        selected_file = st.selectbox("Select a file to manage", db["File Name"])
-
-        if selected_file:
-            # Delete Single File
-            if st.button("Delete File"):
-                file_path = os.path.join(UPLOAD_FOLDER, selected_file)
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-                delete_from_database(selected_file)
-                st.success("File deleted successfully!")
-        # Delete All Files
-        if st.button("Delete All Files"):
-            for file_name in db["File Name"]:
-                file_path = os.path.join(UPLOAD_FOLDER, file_name)
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-            delete_all_from_database()
-            st.success("All files deleted successfully!")
-    else:
-        st.info(f"No files available to manage in {selected_category} category.")
-
-# Settings
-elif menu == "Settings ⚙️":
-    st.header("⚙️ Settings")
-    uploaded_main_image = st.file_uploader("Upload a new main image (jpg/png):", type=["jpg", "png"])
-    if st.button("Update Main Image"):
-        if uploaded_main_image:
-            with open(MAIN_IMAGE, "wb") as f:
-                f.write(uploaded_main_image.getbuffer())
-            st.success("Main image updated!")
-            load_main_image()
-
-# Help / FAQ
-elif menu == "Help / FAQ ❓":
-    st.header("Help / FAQ ❓")
-    st.write("""
-        If you have any questions or need support, feel free to reach out via email:
-        **civil.eng2019s@gmail.com**
-    """)
-
-# Export Data
-elif menu == "Export Data 📤":
-    st.header("📤 Export Data")
-    db = load_database()  # Load the database.csv in the app
-    st.write("Current Database Content:")
-    st.dataframe(db)  # Display the current database content
 
 # Footer
 st.markdown("---")
