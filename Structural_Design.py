@@ -35,12 +35,12 @@ def load_database():
 def save_to_database(file_name, category):
     """Save a new entry to the database."""
     db = load_database()
-    new_entry = {
+    new_entry = pd.DataFrame([{
         "File Name": file_name,
         "Category": category,
         "Upload Date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
-    db = db.append(new_entry, ignore_index=True)
+    }])
+    db = pd.concat([db, new_entry], ignore_index=True)
     db.to_csv(DATABASE_FILE, index=False)
 
 def delete_from_database(file_name):
