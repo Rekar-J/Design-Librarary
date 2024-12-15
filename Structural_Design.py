@@ -134,8 +134,14 @@ if menu == "Dashboard 📊":
     load_main_image()
     db = load_database()
 
-    # Format the Upload Date to show only the date (YYYY-MM-DD)
-    db["Upload Date"] = pd.to_datetime(db["Upload Date"]).dt.date
+    # Format the Upload Date to show only the date (YYYY-MM-DD) and handle errors
+    db["Upload Date"] = pd.to_datetime(db["Upload Date"], errors='coerce').dt.date
+
+    # Handle rows with invalid dates (if any)
+    invalid_dates = db[db["Upload Date"].isna()]
+    if not invalid_dates.empty:
+        st.warning(f"Some entries have invalid dates and will be skipped: {len(invalid_dates)}")
+        db = db.dropna(subset=["Upload Date"])  # Drop rows with invalid dates
 
     # Display Metrics
     col1, col2, col3, col4 = st.columns(4)
@@ -156,6 +162,7 @@ if menu == "Dashboard 📊":
         st.table(db_display)  # Use st.table() for a clean display
     else:
         st.info("No files uploaded yet.")
+
 
 # Upload Files
 elif menu == "Upload Files 📂":
