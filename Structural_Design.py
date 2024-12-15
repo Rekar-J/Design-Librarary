@@ -2,22 +2,33 @@ import os
 import streamlit as st
 import pandas as pd
 import datetime
+import requests
+import base64
+from io import StringIO
 
 # Configurable Settings
-APP_NAME = "🏗️ Structural Design Library"
+APP_NAME = "🏰 Structural Design Library"
 MAIN_IMAGE = "main_image.jpg"  # Path to your main image
-DATABASE_FILE = "database.csv"  # Database file for storing file metadata
+GITHUB_REPO = "hawkarabdulhaq/Design-Librarary"  # Replace with your GitHub repo
+DATABASE_FILE = "database.csv"  # Database file in the GitHub repo
 UPLOAD_FOLDER = "uploaded_files"
+GITHUB_BRANCH = "main"  # Branch name for pushing data
+
+# Load GitHub Token from Streamlit secrets
+github_token = st.secrets["GITHUB_TOKEN"]
+
+# GitHub API Headers
+headers = {
+    "Authorization": f"Bearer {github_token}",
+    "Accept": "application/vnd.github+json"
+}
 
 # App Configuration
 st.set_page_config(page_title=APP_NAME, layout="wide")
 st.title(APP_NAME)
 
-# Ensure directories and files exist
+# Ensure directories exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-if not os.path.exists(DATABASE_FILE):
-    # Create the database.csv file with the appropriate structure
-    pd.DataFrame(columns=["File Name", "Category", "Upload Date"]).to_csv(DATABASE_FILE, index=False)
 
 CATEGORIES = ["All", "2D Plans", "3D Plans", "Other"]
 
@@ -29,12 +40,42 @@ def load_main_image():
     else:
         st.warning("Main image not found. Please upload a valid image in the Settings section.")
 
+def fetch_file_from_github(file_path):
+    """Fetch a file from the GitHub repository."""
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{file_path}"
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return response.json()
+    return None
+
+def save_to_github(file_name, content, message):
+    """Save or update a file in the GitHub repository."""
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{file_name}"
+    existing_file = fetch_file_from_github(file_name)
+    
+    data = {
+        "message": message,
+        "content": base64.b64encode(content.encode()).decode(),
+        "branch": GITHUB_BRANCH,
+    }
+    
+    if existing_file:
+        data["sha"] = existing_file["sha"]
+
+    response = requests.put(url, headers=headers, json=data)
+    return response.status_code == 201 or response.status_code == 200
+
 def load_database():
-    """Load the database file as a DataFrame."""
-    return pd.read_csv(DATABASE_FILE)
+    """Load the database file from GitHub."""
+    file_data = fetch_file_from_github(DATABASE_FILE)
+    if file_data:
+        content = base64.b64decode(file_data["content"]).decode()
+        return pd.read_csv(StringIO(content))
+    else:
+        return pd.DataFrame(columns=["File Name", "Category", "Upload Date"])
 
 def save_to_database(file_name, category):
-    """Save a new entry to the database without duplications."""
+    """Save a new entry to the database on GitHub."""
     db = load_database()
     if not ((db["File Name"] == file_name) & (db["Category"] == category)).any():
         new_entry = pd.DataFrame([{
@@ -43,24 +84,11 @@ def save_to_database(file_name, category):
             "Upload Date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }])
         db = pd.concat([db, new_entry], ignore_index=True)
-        db.to_csv(DATABASE_FILE, index=False)
-
-def delete_from_database(file_name):
-    """Delete an entry from the database."""
-    db = load_database()
-    db = db[db["File Name"] != file_name]
-    db.to_csv(DATABASE_FILE, index=False)
-
-def delete_all_from_database():
-    """Clear all entries from the database."""
-    pd.DataFrame(columns=["File Name", "Category", "Upload Date"]).to_csv(DATABASE_FILE, index=False)
-
-def filter_files_by_category(category):
-    """Filter files by category."""
-    db = load_database()
-    if category == "All":
-        return db
-    return db[db["Category"] == category]
+        csv_content = db.to_csv(index=False)
+        if save_to_github(DATABASE_FILE, csv_content, "Update database with new upload"):
+            st.success("Database updated successfully!")
+        else:
+            st.error("Failed to update database on GitHub.")
 
 # Sidebar Navigation
 st.sidebar.title("Navigation")
@@ -70,13 +98,7 @@ menu = st.sidebar.radio(
         "Dashboard 📊",
         "Upload Files 📂",
         "View Designs 👁️",
-        "Manage Files 🔧",
         "Settings ⚙️",
-        "Help / FAQ ❓",
-        "User Feedback 💬",
-        "File Analytics 📈",
-        "Export Data 📤",
-        "About ℹ️"
     ]
 )
 
@@ -120,50 +142,16 @@ elif menu == "Upload Files 📂":
 elif menu == "View Designs 👁️":
     st.header("👁️ View Uploaded Files")
     selected_category = st.selectbox("Choose Category", CATEGORIES)
-    db = filter_files_by_category(selected_category)
+    db = load_database()
 
     if not db.empty:
-        for i, row in db.iterrows():
+        filtered_db = db if selected_category == "All" else db[db["Category"] == selected_category]
+        for _, row in filtered_db.iterrows():
             st.subheader(row["File Name"])
-            file_path = os.path.join(UPLOAD_FOLDER, row["File Name"])
-            with open(file_path, "rb") as f:
-                st.download_button(
-                    label="Download File",
-                    data=f,
-                    file_name=row["File Name"],
-                    mime="application/octet-stream",
-                    key=f"download_{i}"  # Unique key for each button
-                )
+            st.write(f"Category: {row['Category']}")
+            st.write(f"Uploaded On: {row['Upload Date']}")
     else:
         st.info(f"No files found in {selected_category} category.")
-
-# Manage Files
-elif menu == "Manage Files 🔧":
-    st.header("🔧 Manage Uploaded Files")
-    selected_category = st.selectbox("Filter by Category", CATEGORIES)
-    db = filter_files_by_category(selected_category)
-
-    if not db.empty:
-        selected_file = st.selectbox("Select a file to manage", db["File Name"])
-
-        if selected_file:
-            # Delete Single File
-            if st.button("Delete File"):
-                file_path = os.path.join(UPLOAD_FOLDER, selected_file)
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-                delete_from_database(selected_file)
-                st.success("File deleted successfully!")
-        # Delete All Files
-        if st.button("Delete All Files"):
-            for file_name in db["File Name"]:
-                file_path = os.path.join(UPLOAD_FOLDER, file_name)
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-            delete_all_from_database()
-            st.success("All files deleted successfully!")
-    else:
-        st.info(f"No files available to manage in {selected_category} category.")
 
 # Settings
 elif menu == "Settings ⚙️":
@@ -175,18 +163,3 @@ elif menu == "Settings ⚙️":
                 f.write(uploaded_main_image.getbuffer())
             st.success("Main image updated!")
             load_main_image()
-
-# Help / FAQ
-elif menu == "Help / FAQ ❓":
-    st.header("Help / FAQ ❓")
-    st.write("""
-        If you have any questions or need support, feel free to reach out via email:
-        **civil.eng2019s@gmail.com**
-    """)
-
-# Export Data
-elif menu == "Export Data 📤":
-    st.header("📤 Export Data")
-    db = load_database()  # Load the database.csv in the app
-    st.write("Current Database Content:")
-    st.dataframe(db)  # Display the current database content
