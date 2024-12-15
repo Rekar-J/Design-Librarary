@@ -34,15 +34,16 @@ def load_database():
     return pd.read_csv(DATABASE_FILE)
 
 def save_to_database(file_name, category):
-    """Save a new entry to the database."""
+    """Save a new entry to the database without duplications."""
     db = load_database()
-    new_entry = pd.DataFrame([{
-        "File Name": file_name,
-        "Category": category,
-        "Upload Date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }])
-    db = pd.concat([db, new_entry], ignore_index=True)
-    db.to_csv(DATABASE_FILE, index=False)
+    if not ((db["File Name"] == file_name) & (db["Category"] == category)).any():
+        new_entry = pd.DataFrame([{
+            "File Name": file_name,
+            "Category": category,
+            "Upload Date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }])
+        db = pd.concat([db, new_entry], ignore_index=True)
+        db.to_csv(DATABASE_FILE, index=False)
 
 def delete_from_database(file_name):
     """Delete an entry from the database."""
