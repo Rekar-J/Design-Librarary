@@ -4,6 +4,7 @@ import pandas as pd
 import datetime
 import requests
 import base64
+from io import StringIO
 
 # Configurable Settings
 APP_NAME = "🏰 Structural Design Library"
@@ -69,7 +70,7 @@ def load_database():
     file_data = fetch_file_from_github(DATABASE_FILE)
     if file_data:
         content = base64.b64decode(file_data["content"]).decode()
-        return pd.read_csv(pd.compat.StringIO(content))
+        return pd.read_csv(StringIO(content))
     else:
         return pd.DataFrame(columns=["File Name", "Category", "Upload Date"])
 
