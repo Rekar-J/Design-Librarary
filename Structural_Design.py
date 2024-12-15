@@ -46,6 +46,7 @@ def save_to_database(file_name, category):
         db = pd.concat([db, new_entry], ignore_index=True)
         db.to_csv(DATABASE_FILE, index=False)
 
+st.write(subprocess.run(["git", "status"], capture_output=True, text=True).stdout)
 def update_github():
     """Commit and push the updated database.csv to GitHub."""
     try:
