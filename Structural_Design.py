@@ -2,12 +2,14 @@ import os
 import streamlit as st
 import pandas as pd
 import datetime
+from github import Github  # For GitHub API integration
 
 # Configurable Settings
 APP_NAME = "🏗️ Structural Design Library"
 MAIN_IMAGE = "main_image.jpg"  # Path to your main image
 DATABASE_FILE = "database.csv"  # Database file for storing file metadata
 UPLOAD_FOLDER = "uploaded_files"
+GITHUB_REPO = "Rekar-J/Design-Librarary"  # Replace with your repository name
 
 # App Configuration
 st.set_page_config(page_title=APP_NAME, layout="wide")
@@ -63,6 +65,45 @@ def filter_files_by_category(category):
     if category == "All":
         return db
     return db[db["Category"] == category]
+
+def update_github_database():
+    """
+    Push the updated database.csv to GitHub.
+    """
+    github_token = st.secrets["GITHUB_TOKEN"]  # Load GitHub token from Streamlit secrets
+    if not github_token:
+        st.error("GitHub token is missing. Please set the GITHUB_TOKEN in Streamlit secrets.")
+        return
+
+    try:
+        # Authenticate with GitHub
+        g = Github(github_token)
+        repo = g.get_repo(GITHUB_REPO)
+
+        # Read the updated database.csv content
+        with open(DATABASE_FILE, "r") as f:
+            content = f.read()
+
+        # Check if the file exists in the repository
+        try:
+            file = repo.get_contents(DATABASE_FILE)
+            repo.update_file(
+                path=file.path,
+                message="Updated database.csv via Streamlit app",
+                content=content,
+                sha=file.sha,
+            )
+            st.success("Database successfully updated on GitHub!")
+        except Exception:
+            # If the file doesn't exist, create it
+            repo.create_file(
+                path=DATABASE_FILE,
+                message="Created database.csv via Streamlit app",
+                content=content,
+            )
+            st.success("Database created and uploaded to GitHub!")
+    except Exception as e:
+        st.error(f"Failed to update GitHub: {e}")
 
 # Sidebar Navigation
 st.sidebar.title("Navigation")
@@ -123,90 +164,5 @@ elif menu == "Upload Files 📂":
             save_to_database(uploaded_file.name, category)
         st.success("Files uploaded successfully!")
 
-# View Designs
-elif menu == "View Designs 👁️":
-    st.header("👁️ View Uploaded Files")
-    selected_category = st.selectbox("Choose Category", CATEGORIES)
-    db = filter_files_by_category(selected_category)
-
-    if not db.empty:
-        for i, row in db.iterrows():
-            st.subheader(row["File Name"])
-            file_path = os.path.join(UPLOAD_FOLDER, row["File Name"])
-            with open(file_path, "rb") as f:
-                st.download_button(
-                    label="Download File",
-                    data=f,
-                    file_name=row["File Name"],
-                    mime="application/octet-stream",
-                    key=f"download_{i}"  # Unique key for each button
-                )
-    else:
-        st.info(f"No files found in {selected_category} category.")
-
-# Manage Files
-elif menu == "Manage Files 🔧":
-    st.header("🔧 Manage Uploaded Files")
-    selected_category = st.selectbox("Filter by Category", CATEGORIES)
-    db = filter_files_by_category(selected_category)
-
-    if not db.empty:
-        selected_file = st.selectbox("Select a file to manage", db["File Name"])
-
-        if selected_file:
-            # Delete Single File
-            if st.button("Delete File"):
-                file_path = os.path.join(UPLOAD_FOLDER, selected_file)
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-                delete_from_database(selected_file)
-                st.success("File deleted successfully!")
-        # Delete All Files
-        if st.button("Delete All Files"):
-            for file_name in db["File Name"]:
-                file_path = os.path.join(UPLOAD_FOLDER, file_name)
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-            delete_all_from_database()
-            st.success("All files deleted successfully!")
-    else:
-        st.info(f"No files available to manage in {selected_category} category.")
-
-# Settings
-elif menu == "Settings ⚙️":
-    st.header("⚙️ Settings")
-    uploaded_main_image = st.file_uploader("Upload a new main image (jpg/png):", type=["jpg", "png"])
-    if st.button("Update Main Image"):
-        if uploaded_main_image:
-            with open(MAIN_IMAGE, "wb") as f:
-                f.write(uploaded_main_image.getbuffer())
-            st.success("Main image updated!")
-            load_main_image()
-
-# User Feedback
-elif menu == "User Feedback 💬":
-    st.header("💬 User Feedback")
-    st.text_area("Share your feedback", placeholder="Write your feedback here...")
-    if st.button("Submit Feedback"):
-        st.success("Thank you for your feedback!")
-
-# File Analytics
-elif menu == "File Analytics 📈":
-    st.header("📈 File Analytics")
-    db = load_database()
-    st.bar_chart(db["Category"].value_counts())
-
-# About
-elif menu == "About ℹ️":
-    st.header("ℹ️ About This App")
-    st.markdown("""
-        This app is designed for civil engineers and designers to manage their structural design files.
-        You can upload, download, and categorize your files easily. Enjoy!
-    """)
-
-# Export Data
-elif menu == "Export Data 📤":
-    st.header("📤 Export Data")
-    db = load_database()  # Load the database.csv in the app
-    st.write("Current Database Content:")
-    st.dataframe(db)  # Display the current database content
+        # Push database.csv to GitHub
+        update_github_database()
