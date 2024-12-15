@@ -31,7 +31,9 @@ def load_main_image():
 
 def load_database():
     """Load the database file as a DataFrame."""
-    return pd.read_csv(DATABASE_FILE)
+    db = pd.read_csv(DATABASE_FILE)
+    db["Upload Date"] = pd.to_datetime(db["Upload Date"], errors='coerce').dt.date  # Format Upload Date
+    return db
 
 def save_to_database(file_name, category):
     """Save a new entry to the database without duplications."""
@@ -40,7 +42,7 @@ def save_to_database(file_name, category):
         new_entry = pd.DataFrame([{
             "File Name": file_name,
             "Category": category,
-            "Upload Date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            "Upload Date": datetime.date.today()
         }])
         db = pd.concat([db, new_entry], ignore_index=True)
         db.to_csv(DATABASE_FILE, index=False)
@@ -72,7 +74,6 @@ menu = st.sidebar.radio(
         "View Designs 👁️",
         "Manage Files 🔧",
         "Settings ⚙️",
-        "Help / FAQ ❓",
         "User Feedback 💬",
         "File Analytics 📈",
         "Export Data 📤",
@@ -97,7 +98,13 @@ if menu == "Dashboard 📊":
         st.metric("Other", len(db[db["Category"] == "Other"]))
 
     st.subheader("Recent Uploads")
-    st.dataframe(db.sort_values("Upload Date", ascending=False))
+    if not db.empty:
+        db = db.sort_values("Upload Date", ascending=False).reset_index(drop=True)  # Sort and reset index
+        db["No."] = range(1, len(db) + 1)  # Add sequential numbering
+        db_display = db[["No.", "File Name", "Category", "Upload Date"]]  # Select relevant columns
+        st.table(db_display)  # Use st.table() for clean display
+    else:
+        st.info("No files uploaded yet.")
 
 # Upload Files
 elif menu == "Upload Files 📂":
@@ -176,12 +183,25 @@ elif menu == "Settings ⚙️":
             st.success("Main image updated!")
             load_main_image()
 
-# Help / FAQ
-elif menu == "Help / FAQ ❓":
-    st.header("Help / FAQ ❓")
-    st.write("""
-        If you have any questions or need support, feel free to reach out via email:
-        **civil.eng2019s@gmail.com**
+# User Feedback
+elif menu == "User Feedback 💬":
+    st.header("💬 User Feedback")
+    st.text_area("Share your feedback", placeholder="Write your feedback here...")
+    if st.button("Submit Feedback"):
+        st.success("Thank you for your feedback!")
+
+# File Analytics
+elif menu == "File Analytics 📈":
+    st.header("📈 File Analytics")
+    db = load_database()
+    st.bar_chart(db["Category"].value_counts())
+
+# About
+elif menu == "About ℹ️":
+    st.header("ℹ️ About This App")
+    st.markdown("""
+        This app is designed for civil engineers and designers to manage their structural design files.
+        You can upload, download, and categorize your files easily. Enjoy!
     """)
 
 # Export Data
