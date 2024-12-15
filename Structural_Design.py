@@ -6,7 +6,7 @@ import requests
 import base64
 
 # Configurable Settings
-APP_NAME = "\ud83c\udff0 Structural Design Library"
+APP_NAME = "🏰 Structural Design Library"
 MAIN_IMAGE = "main_image.jpg"  # Path to your main image
 GITHUB_REPO = "hawkarabdulhaq/Design-Librarary"  # Replace with your GitHub repo
 DATABASE_FILE = "database.csv"  # Database file in the GitHub repo
