@@ -121,7 +121,7 @@ elif menu == "View Designs 👁️":
     db = filter_files_by_category(selected_category)
 
     if not db.empty:
-        for _, row in db.iterrows():
+        for i, row in db.iterrows():
             st.subheader(row["File Name"])
             file_path = os.path.join(UPLOAD_FOLDER, row["File Name"])
             with open(file_path, "rb") as f:
@@ -129,7 +129,8 @@ elif menu == "View Designs 👁️":
                     label="Download File",
                     data=f,
                     file_name=row["File Name"],
-                    mime="application/octet-stream"
+                    mime="application/octet-stream",
+                    key=f"download_{i}"  # Unique key for each button
                 )
     else:
         st.info(f"No files found in {selected_category} category.")
