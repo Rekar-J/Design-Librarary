@@ -129,11 +129,16 @@ menu = st.sidebar.radio(
 )
 
 # Dashboard
+# Dashboard
 if menu == "Dashboard 📊":
     st.header("📊 Dashboard")
     load_main_image()
     db = load_database()
 
+    # Format the Upload Date to show only the date (YYYY-MM-DD)
+    db["Upload Date"] = pd.to_datetime(db["Upload Date"]).dt.date
+
+    # Display Metrics
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("Total Files", len(db))
@@ -144,8 +149,16 @@ if menu == "Dashboard 📊":
     with col4:
         st.metric("Other", len(db[db["Category"] == "Other"]))
 
+    # Display Recent Uploads with proper numbering
     st.subheader("Recent Uploads")
-    st.dataframe(db.sort_values("Upload Date", ascending=False))
+    if not db.empty:
+        db.reset_index(drop=True, inplace=True)  # Reset index for proper numbering
+        db.index += 1  # Start numbering from 1
+        db_display = db.rename_axis("No.").reset_index()  # Add numbered index as a column
+        st.dataframe(db_display)
+    else:
+        st.info("No files uploaded yet.")
+
 
 # Upload Files
 elif menu == "Upload Files 📂":
